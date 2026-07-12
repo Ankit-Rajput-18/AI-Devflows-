@@ -1,0 +1,63 @@
+﻿import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+
+@Injectable()
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
+  private readonly logger = new Logger(PrismaService.name);
+
+  constructor() {
+    super({
+      log: [
+        { emit: 'event', level: 'query' },
+        { emit: 'stdout', level: 'info' },
+        { emit: 'stdout', level: 'warn' },
+        { emit: 'stdout', level: 'error' },
+      ],
+    });
+  }
+
+  async onModuleInit() {
+    try {
+      await this.\();
+      this.logger.log('✅ Database connected successfully');
+    } catch (error) {
+      this.logger.error('❌ Database connection failed:', error);
+      throw error;
+    }
+  }
+
+  async onModuleDestroy() {
+    await this.\();
+    this.logger.log('Database disconnected');
+  }
+
+  async cleanDatabase() {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Cannot clean database in production!');
+    }
+
+    const tablenames = await this.\<Array<{ tablename: string }>>\
+      SELECT tablename FROM pg_tables WHERE schemaname='public'
+    \;
+
+    const tables = tablenames
+      .map(({ tablename }) => tablename)
+      .filter((name) => name !== '_prisma_migrations')
+      .map((name) => '\' + name + '\')
+      .join(', ');
+
+    try {
+      await this.\('TRUNCATE TABLE ' + tables + ' CASCADE;');
+    } catch (error) {
+      this.logger.error('Error cleaning database:', error);
+    }
+  }
+}

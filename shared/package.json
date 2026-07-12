@@ -1,0 +1,14 @@
+﻿{
+  "name": "@devflow/shared",
+  "version": "1.0.0",
+  "description": "Shared types, constants and utilities for DevFlow AI",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

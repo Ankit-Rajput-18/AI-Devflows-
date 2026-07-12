@@ -1,0 +1,8 @@
+﻿{
+  "dashboard": {
+    "title": "DevFlow AI Dashboard",
+    "description": "Monitoring dashboard for DevFlow AI",
+    "panels": [],
+    "version": 1
+  }
+}

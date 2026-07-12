@@ -1,0 +1,471 @@
+﻿generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================
+// USER
+// ==================
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  avatar        String?
+  password      String?
+  googleId      String?   @unique
+  role          UserRole  @default(DEVELOPER)
+  isActive      Boolean   @default(true)
+  isVerified    Boolean   @default(false)
+  refreshToken  String?
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  ownedProjects     Project[]         @relation("ProjectOwner")
+  projectMembers    ProjectMember[]
+  assignedTasks     Task[]            @relation("TaskAssignee")
+  createdTasks      Task[]            @relation("TaskCreator")
+  sentMessages      ChatMessage[]
+  notifications     Notification[]
+  aiReviews         AIReview[]
+  uploadedFiles     File[]
+  calendarEvents    CalendarEvent[]
+  apiKeys           ApiKey[]
+  activities        Activity[]
+  sprintComments    SprintComment[]
+  taskComments      TaskComment[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  DEVELOPER
+  VIEWER
+}
+
+// ==================
+// PROJECT
+// ==================
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  slug        String        @unique
+  status      ProjectStatus @default(ACTIVE)
+  color       String        @default("#3b82f6")
+  icon        String?
+  ownerId     String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  owner       User            @relation("ProjectOwner", fields: [ownerId], references: [id])
+  members     ProjectMember[]
+  tasks       Task[]
+  sprints     Sprint[]
+  chatRooms   ChatRoom[]
+  files       File[]
+  activities  Activity[]
+  apiKeys     ApiKey[]
+
+  @@map("projects")
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+  COMPLETED
+}
+
+// ==================
+// PROJECT MEMBER
+// ==================
+model ProjectMember {
+  id        String      @id @default(cuid())
+  projectId String
+  userId    String
+  role      MemberRole  @default(DEVELOPER)
+  joinedAt  DateTime    @default(now())
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MANAGER
+  DEVELOPER
+  VIEWER
+}
+
+// ==================
+// SPRINT
+// ==================
+model Sprint {
+  id          String       @id @default(cuid())
+  name        String
+  goal        String?
+  projectId   String
+  status      SprintStatus @default(PLANNING)
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  comments    SprintComment[]
+
+  @@map("sprints")
+}
+
+enum SprintStatus {
+  PLANNING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+// ==================
+// TASK
+// ==================
+model Task {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus   @default(BACKLOG)
+  priority    TaskPriority @default(MEDIUM)
+  type        TaskType     @default(TASK)
+  projectId   String
+  sprintId    String?
+  assigneeId  String?
+  creatorId   String
+  labels      String[]     @default([])
+  dueDate     DateTime?
+  estimatedHours Float?
+  actualHours    Float?
+  order       Int          @default(0)
+  parentId    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprint      Sprint?      @relation(fields: [sprintId], references: [id])
+  assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creator     User         @relation("TaskCreator", fields: [creatorId], references: [id])
+  parent      Task?        @relation("SubTasks", fields: [parentId], references: [id])
+  subTasks    Task[]       @relation("SubTasks")
+  comments    TaskComment[]
+  attachments TaskAttachment[]
+  activities  Activity[]
+
+  @@map("tasks")
+}
+
+enum TaskStatus {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskType {
+  TASK
+  BUG
+  FEATURE
+  EPIC
+  STORY
+}
+
+// ==================
+// TASK COMMENT
+// ==================
+model TaskComment {
+  id        String   @id @default(cuid())
+  content   String
+  taskId    String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task      Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id])
+
+  @@map("task_comments")
+}
+
+// ==================
+// TASK ATTACHMENT
+// ==================
+model TaskAttachment {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  size      Int
+  mimeType  String
+  taskId    String
+  createdAt DateTime @default(now())
+
+  task      Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("task_attachments")
+}
+
+// ==================
+// SPRINT COMMENT
+// ==================
+model SprintComment {
+  id        String   @id @default(cuid())
+  content   String
+  sprintId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  sprint    Sprint @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id])
+
+  @@map("sprint_comments")
+}
+
+// ==================
+// CHAT ROOM
+// ==================
+model ChatRoom {
+  id          String       @id @default(cuid())
+  name        String
+  type        ChatRoomType @default(CHANNEL)
+  projectId   String?
+  description String?
+  isPrivate   Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  project     Project?      @relation(fields: [projectId], references: [id])
+  messages    ChatMessage[]
+
+  @@map("chat_rooms")
+}
+
+enum ChatRoomType {
+  CHANNEL
+  DIRECT
+  GROUP
+}
+
+// ==================
+// CHAT MESSAGE
+// ==================
+model ChatMessage {
+  id        String      @id @default(cuid())
+  content   String
+  type      MessageType @default(TEXT)
+  roomId    String
+  senderId  String
+  fileUrl   String?
+  fileName  String?
+  isEdited  Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  room      ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender    User     @relation(fields: [senderId], references: [id])
+
+  @@map("chat_messages")
+}
+
+enum MessageType {
+  TEXT
+  FILE
+  IMAGE
+  CODE
+  SYSTEM
+}
+
+// ==================
+// NOTIFICATION
+// ==================
+model Notification {
+  id        String           @id @default(cuid())
+  title     String
+  message   String
+  type      NotificationType
+  userId    String
+  isRead    Boolean          @default(false)
+  link      String?
+  metadata  Json?
+  createdAt DateTime         @default(now())
+
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_UPDATED
+  PR_REVIEW
+  MENTION
+  COMMENT
+  SPRINT_UPDATE
+  AI_REVIEW_COMPLETE
+  MEETING_INVITE
+  FILE_SHARED
+  SYSTEM
+}
+
+// ==================
+// AI REVIEW
+// ==================
+model AIReview {
+  id          String         @id @default(cuid())
+  code        String
+  language    String
+  review      String
+  summary     String?
+  bugs        Json           @default("[]")
+  suggestions Json           @default("[]")
+  score       Float          @default(0)
+  status      AIReviewStatus @default(PENDING)
+  userId      String
+  projectId   String?
+  taskId      String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  user        User @relation(fields: [userId], references: [id])
+
+  @@map("ai_reviews")
+}
+
+enum AIReviewStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// ==================
+// FILE
+// ==================
+model File {
+  id          String   @id @default(cuid())
+  name        String
+  originalName String
+  url         String
+  publicId    String
+  size        Int
+  mimeType    String
+  folder      String?
+  projectId   String?
+  uploadedById String
+  createdAt   DateTime @default(now())
+
+  project     Project? @relation(fields: [projectId], references: [id])
+  uploadedBy  User     @relation(fields: [uploadedById], references: [id])
+
+  @@map("files")
+}
+
+// ==================
+// CALENDAR EVENT
+// ==================
+model CalendarEvent {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  isAllDay    Boolean   @default(false)
+  color       String    @default("#3b82f6")
+  meetingUrl  String?
+  projectId   String?
+  creatorId   String
+  attendees   String[]  @default([])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  creator     User @relation(fields: [creatorId], references: [id])
+
+  @@map("calendar_events")
+}
+
+// ==================
+// API KEY
+// ==================
+model ApiKey {
+  id          String   @id @default(cuid())
+  name        String
+  key         String   @unique
+  prefix      String
+  userId      String
+  projectId   String?
+  permissions String[] @default([])
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project? @relation(fields: [projectId], references: [id])
+
+  @@map("api_keys")
+}
+
+// ==================
+// ACTIVITY / TIMELINE
+// ==================
+model Activity {
+  id          String       @id @default(cuid())
+  action      String
+  entityType  String
+  entityId    String
+  entityTitle String?
+  metadata    Json?
+  userId      String
+  projectId   String?
+  taskId      String?
+  createdAt   DateTime     @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+  project     Project? @relation(fields: [projectId], references: [id])
+  task        Task?    @relation(fields: [taskId], references: [id])
+
+  @@map("activities")
+}
+
+// ==================
+// WEBHOOK
+// ==================
+model Webhook {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  secret    String?
+  events    String[] @default([])
+  isActive  Boolean  @default(true)
+  projectId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("webhooks")
+}
