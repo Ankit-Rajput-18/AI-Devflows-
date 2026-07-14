@@ -1,18 +1,8 @@
-﻿import {
-  IsString,
-  IsOptional,
-  MinLength,
-  MaxLength,
-  IsEnum,
-  IsArray,
-  IsNumber,
-  IsDateString,
-} from 'class-validator';
+import { IsString, IsOptional, MinLength, MaxLength, IsArray, IsNumber, IsDateString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { TaskStatus, TaskPriority, TaskType } from '@prisma/client';
 
 export class CreateTaskDto {
-  @ApiProperty({ example: 'Implement login page' })
+  @ApiProperty()
   @IsString()
   @MinLength(2)
   @MaxLength(200)
@@ -21,10 +11,9 @@ export class CreateTaskDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  @MaxLength(5000)
   description?: string;
 
-  @ApiProperty({ example: 'project-id-here' })
+  @ApiProperty()
   @IsString()
   projectId: string;
 
@@ -38,17 +27,17 @@ export class CreateTaskDto {
   @IsString()
   assigneeId?: string;
 
-  @ApiProperty({ enum: TaskPriority, required: false, default: 'MEDIUM' })
+  @ApiProperty({ required: false })
   @IsOptional()
-  @IsEnum(TaskPriority)
-  priority?: TaskPriority;
+  @IsString()
+  priority?: string;
 
-  @ApiProperty({ enum: TaskType, required: false, default: 'TASK' })
+  @ApiProperty({ required: false })
   @IsOptional()
-  @IsEnum(TaskType)
-  type?: TaskType;
+  @IsString()
+  type?: string;
 
-  @ApiProperty({ required: false, type: [String] })
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsArray()
   labels?: string[];
@@ -73,30 +62,27 @@ export class UpdateTaskDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  @MinLength(2)
-  @MaxLength(200)
   title?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  @MaxLength(5000)
   description?: string;
 
-  @ApiProperty({ enum: TaskStatus, required: false })
+  @ApiProperty({ required: false })
   @IsOptional()
-  @IsEnum(TaskStatus)
-  status?: TaskStatus;
+  @IsString()
+  status?: string;
 
-  @ApiProperty({ enum: TaskPriority, required: false })
+  @ApiProperty({ required: false })
   @IsOptional()
-  @IsEnum(TaskPriority)
-  priority?: TaskPriority;
+  @IsString()
+  priority?: string;
 
-  @ApiProperty({ enum: TaskType, required: false })
+  @ApiProperty({ required: false })
   @IsOptional()
-  @IsEnum(TaskType)
-  type?: TaskType;
+  @IsString()
+  type?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -108,7 +94,7 @@ export class UpdateTaskDto {
   @IsString()
   sprintId?: string;
 
-  @ApiProperty({ required: false, type: [String] })
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsArray()
   labels?: string[];
@@ -135,13 +121,13 @@ export class UpdateTaskDto {
 }
 
 export class UpdateTaskStatusDto {
-  @ApiProperty({ enum: TaskStatus })
-  @IsEnum(TaskStatus)
-  status: TaskStatus;
+  @ApiProperty()
+  @IsString()
+  status: string;
 }
 
 export class CreateTaskCommentDto {
-  @ApiProperty({ example: 'This looks good!' })
+  @ApiProperty()
   @IsString()
   @MinLength(1)
   @MaxLength(2000)
@@ -149,11 +135,11 @@ export class CreateTaskCommentDto {
 }
 
 export class QueryTasksDto {
-  @ApiProperty({ required: false, default: 1 })
+  @ApiProperty({ required: false })
   @IsOptional()
   page?: number;
 
-  @ApiProperty({ required: false, default: 10 })
+  @ApiProperty({ required: false })
   @IsOptional()
   limit?: number;
 
@@ -172,15 +158,15 @@ export class QueryTasksDto {
   @IsString()
   assigneeId?: string;
 
-  @ApiProperty({ enum: TaskStatus, required: false })
+  @ApiProperty({ required: false })
   @IsOptional()
-  @IsEnum(TaskStatus)
-  status?: TaskStatus;
+  @IsString()
+  status?: string;
 
-  @ApiProperty({ enum: TaskPriority, required: false })
+  @ApiProperty({ required: false })
   @IsOptional()
-  @IsEnum(TaskPriority)
-  priority?: TaskPriority;
+  @IsString()
+  priority?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()

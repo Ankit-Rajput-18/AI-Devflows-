@@ -1,4 +1,4 @@
-﻿import { applyDecorators, Type } from '@nestjs/common';
+import { applyDecorators, Type } from '@nestjs/common';
 import { ApiOkResponse, getSchemaPath } from '@nestjs/swagger';
 
 export const ApiPaginatedResponse = <TModel extends Type<any>>(model: TModel) => {
@@ -8,10 +8,10 @@ export const ApiPaginatedResponse = <TModel extends Type<any>>(model: TModel) =>
         allOf: [
           {
             properties: {
-              success: { type: 'boolean', example: true },
+              success: { type: 'boolean' },
               data: {
                 type: 'array',
-                items: { ref: getSchemaPath(model) },
+                items: { $ref: getSchemaPath(model) },
               },
               pagination: {
                 properties: {

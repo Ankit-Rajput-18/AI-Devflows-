@@ -1,33 +1,32 @@
-﻿import { IsString, IsOptional, MinLength, MaxLength, IsEnum } from 'class-validator';
+import { IsString, IsOptional, MinLength, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
 
 export class UpdateUserDto {
-  @ApiProperty({ example: 'John Doe', required: false })
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(50)
   name?: string;
 
-  @ApiProperty({ example: 'https://avatar.url/pic.jpg', required: false })
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   avatar?: string;
 }
 
 export class UpdateUserRoleDto {
-  @ApiProperty({ enum: UserRole, example: 'DEVELOPER' })
-  @IsEnum(UserRole)
-  role: UserRole;
+  @ApiProperty({ example: 'DEVELOPER' })
+  @IsString()
+  role: string;
 }
 
 export class QueryUsersDto {
-  @ApiProperty({ required: false, default: 1 })
+  @ApiProperty({ required: false })
   @IsOptional()
   page?: number;
 
-  @ApiProperty({ required: false, default: 10 })
+  @ApiProperty({ required: false })
   @IsOptional()
   limit?: number;
 
@@ -36,8 +35,8 @@ export class QueryUsersDto {
   @IsString()
   search?: string;
 
-  @ApiProperty({ required: false, enum: UserRole })
+  @ApiProperty({ required: false })
   @IsOptional()
-  @IsEnum(UserRole)
-  role?: UserRole;
+  @IsString()
+  role?: string;
 }

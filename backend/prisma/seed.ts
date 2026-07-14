@@ -1,12 +1,11 @@
-﻿import { PrismaClient, UserRole, ProjectStatus, TaskStatus, TaskPriority } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting database seed...');
+  console.log('Seeding database...');
 
-  // Create Admin User
   const adminPassword = await bcrypt.hash('Admin@123', 12);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@devflow.ai' },
@@ -15,13 +14,11 @@ async function main() {
       email: 'admin@devflow.ai',
       name: 'Admin User',
       password: adminPassword,
-      role: UserRole.ADMIN,
+      role: 'ADMIN',
       isVerified: true,
     },
   });
-  console.log('✅ Admin user created:', admin.email);
 
-  // Create Developer User
   const devPassword = await bcrypt.hash('Dev@12345', 12);
   const developer = await prisma.user.upsert({
     where: { email: 'dev@devflow.ai' },
@@ -30,13 +27,11 @@ async function main() {
       email: 'dev@devflow.ai',
       name: 'John Developer',
       password: devPassword,
-      role: UserRole.DEVELOPER,
+      role: 'DEVELOPER',
       isVerified: true,
     },
   });
-  console.log('✅ Developer user created:', developer.email);
 
-  // Create Manager User
   const managerPassword = await bcrypt.hash('Manager@123', 12);
   const manager = await prisma.user.upsert({
     where: { email: 'manager@devflow.ai' },
@@ -45,142 +40,71 @@ async function main() {
       email: 'manager@devflow.ai',
       name: 'Jane Manager',
       password: managerPassword,
-      role: UserRole.MANAGER,
+      role: 'MANAGER',
       isVerified: true,
     },
   });
-  console.log('✅ Manager user created:', manager.email);
 
-  // Create Sample Project
   const project = await prisma.project.upsert({
     where: { slug: 'devflow-ai-main' },
     update: {},
     create: {
       name: 'DevFlow AI',
-      description: 'Main AI powered developer workspace project',
+      description: 'Main project',
       slug: 'devflow-ai-main',
-      status: ProjectStatus.ACTIVE,
+      status: 'ACTIVE',
       color: '#3b82f6',
       ownerId: admin.id,
     },
   });
-  console.log('✅ Sample project created:', project.name);
 
-  // Add Members to Project
   await prisma.projectMember.upsert({
     where: { projectId_userId: { projectId: project.id, userId: developer.id } },
     update: {},
-    create: {
-      projectId: project.id,
-      userId: developer.id,
-      role: 'DEVELOPER',
-    },
+    create: { projectId: project.id, userId: developer.id, role: 'DEVELOPER' },
   });
 
   await prisma.projectMember.upsert({
     where: { projectId_userId: { projectId: project.id, userId: manager.id } },
     update: {},
-    create: {
-      projectId: project.id,
-      userId: manager.id,
-      role: 'MANAGER',
-    },
+    create: { projectId: project.id, userId: manager.id, role: 'MANAGER' },
   });
-  console.log('✅ Project members added');
 
-  // Create Sample Sprint
   const sprint = await prisma.sprint.create({
     data: {
       name: 'Sprint 1',
-      goal: 'Setup project foundation and core features',
+      goal: 'Setup foundation',
       projectId: project.id,
       status: 'ACTIVE',
       startDate: new Date(),
       endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     },
   });
-  console.log('✅ Sample sprint created:', sprint.name);
 
-  // Create Sample Tasks
   const tasks = [
-    {
-      title: 'Setup NestJS Backend',
-      description: 'Initialize NestJS project with all required modules',
-      status: TaskStatus.DONE,
-      priority: TaskPriority.HIGH,
-      creatorId: admin.id,
-      assigneeId: developer.id,
-    },
-    {
-      title: 'Setup Next.js Frontend',
-      description: 'Initialize Next.js project with Tailwind and Shadcn UI',
-      status: TaskStatus.IN_PROGRESS,
-      priority: TaskPriority.HIGH,
-      creatorId: admin.id,
-      assigneeId: developer.id,
-    },
-    {
-      title: 'Implement Authentication',
-      description: 'JWT and Google OAuth authentication system',
-      status: TaskStatus.TODO,
-      priority: TaskPriority.URGENT,
-      creatorId: manager.id,
-      assigneeId: developer.id,
-    },
-    {
-      title: 'Design Database Schema',
-      description: 'Create Prisma schema for all entities',
-      status: TaskStatus.DONE,
-      priority: TaskPriority.HIGH,
-      creatorId: admin.id,
-      assigneeId: admin.id,
-    },
-    {
-      title: 'Integrate Gemini AI',
-      description: 'Connect Google Gemini AI for code review feature',
-      status: TaskStatus.BACKLOG,
-      priority: TaskPriority.MEDIUM,
-      creatorId: manager.id,
-      assigneeId: developer.id,
-    },
+    { title: 'Setup NestJS Backend', status: 'DONE', priority: 'HIGH', creatorId: admin.id, assigneeId: developer.id },
+    { title: 'Setup Next.js Frontend', status: 'IN_PROGRESS', priority: 'HIGH', creatorId: admin.id, assigneeId: developer.id },
+    { title: 'Implement Authentication', status: 'TODO', priority: 'URGENT', creatorId: manager.id, assigneeId: developer.id },
+    { title: 'Design Database Schema', status: 'DONE', priority: 'HIGH', creatorId: admin.id, assigneeId: admin.id },
+    { title: 'Integrate Gemini AI', status: 'BACKLOG', priority: 'MEDIUM', creatorId: manager.id, assigneeId: developer.id },
   ];
 
   for (const taskData of tasks) {
     await prisma.task.create({
-      data: {
-        ...taskData,
-        projectId: project.id,
-        sprintId: sprint.id,
-      },
+      data: { ...taskData, projectId: project.id, sprintId: sprint.id },
     });
   }
-  console.log('✅ Sample tasks created: ' + tasks.length + ' tasks');
 
-  // Create Chat Room
   await prisma.chatRoom.create({
-    data: {
-      name: 'General',
-      type: 'CHANNEL',
-      projectId: project.id,
-      description: 'General discussion channel',
-    },
+    data: { name: 'General', type: 'CHANNEL', projectId: project.id },
   });
-  console.log('✅ Chat room created');
 
-  console.log('');
-  console.log('🎉 Database seeded successfully!');
-  console.log('');
-  console.log('Test Accounts:');
-  console.log('  Admin:     admin@devflow.ai     / Admin@123');
-  console.log('  Developer: dev@devflow.ai        / Dev@12345');
-  console.log('  Manager:   manager@devflow.ai   / Manager@123');
+  console.log('Seed complete!');
+  console.log('admin@devflow.ai / Admin@123');
+  console.log('dev@devflow.ai / Dev@12345');
+  console.log('manager@devflow.ai / Manager@123');
 }
 
 main()
-  .catch((e) => {
-    console.error('❌ Seed failed:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.\();
-  });
+  .catch((e) => { console.error(e); process.exit(1); })
+  .finally(async () => { await prisma.$disconnect(); });

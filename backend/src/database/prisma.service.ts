@@ -1,4 +1,4 @@
-﻿import {
+import {
   Injectable,
   OnModuleInit,
   OnModuleDestroy,
@@ -16,7 +16,6 @@ export class PrismaService
   constructor() {
     super({
       log: [
-        { emit: 'event', level: 'query' },
         { emit: 'stdout', level: 'info' },
         { emit: 'stdout', level: 'warn' },
         { emit: 'stdout', level: 'error' },
@@ -26,7 +25,7 @@ export class PrismaService
 
   async onModuleInit() {
     try {
-      await this.\();
+      await this.$connect();
       this.logger.log('✅ Database connected successfully');
     } catch (error) {
       this.logger.error('❌ Database connection failed:', error);
@@ -35,29 +34,7 @@ export class PrismaService
   }
 
   async onModuleDestroy() {
-    await this.\();
+    await this.$disconnect();
     this.logger.log('Database disconnected');
-  }
-
-  async cleanDatabase() {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Cannot clean database in production!');
-    }
-
-    const tablenames = await this.\<Array<{ tablename: string }>>\
-      SELECT tablename FROM pg_tables WHERE schemaname='public'
-    \;
-
-    const tables = tablenames
-      .map(({ tablename }) => tablename)
-      .filter((name) => name !== '_prisma_migrations')
-      .map((name) => '\' + name + '\')
-      .join(', ');
-
-    try {
-      await this.\('TRUNCATE TABLE ' + tables + ' CASCADE;');
-    } catch (error) {
-      this.logger.error('Error cleaning database:', error);
-    }
   }
 }

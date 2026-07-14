@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "devflow-ai",
   "version": "1.0.0",
   "description": "AI Powered Developer Workspace",
@@ -11,8 +11,6 @@
     "build:backend": "cd backend && npm run build",
     "test:frontend": "cd frontend && npm run test",
     "test:backend": "cd backend && npm run test",
-    "lint:frontend": "cd frontend && npm run lint",
-    "lint:backend": "cd backend && npm run lint",
     "db:migrate": "cd backend && npx prisma migrate dev",
     "db:seed": "cd backend && npx prisma db seed",
     "db:studio": "cd backend && npx prisma studio",

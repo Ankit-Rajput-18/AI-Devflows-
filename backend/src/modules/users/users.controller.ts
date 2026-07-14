@@ -1,13 +1,6 @@
-﻿import {
-  Controller,
-  Get,
-  Put,
-  Patch,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
+import {
+  Controller, Get, Put, Patch, Delete,
+  Body, Param, Query, UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
@@ -16,7 +9,6 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { UserRole } from '@prisma/client';
 
 @ApiTags('Users')
 @Controller('users')
@@ -45,49 +37,46 @@ export class UsersController {
 
   @Put('me')
   @ApiOperation({ summary: 'Update my profile' })
-  updateMe(
-    @CurrentUser('id') userId: string,
-    @Body() dto: UpdateUserDto,
-  ) {
+  updateMe(@CurrentUser('id') userId: string, @Body() dto: UpdateUserDto) {
     return this.usersService.update(userId, dto);
   }
 
   @Put(':id')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Update user (Admin only)' })
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Update user' })
   update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
   }
 
   @Patch(':id/role')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Update user role (Admin only)' })
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Update role' })
   updateRole(@Param('id') id: string, @Body() dto: UpdateUserRoleDto) {
     return this.usersService.updateRole(id, dto);
   }
 
   @Patch(':id/deactivate')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Deactivate user (Admin only)' })
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Deactivate user' })
   deactivate(@Param('id') id: string) {
     return this.usersService.deactivate(id);
   }
 
   @Patch(':id/activate')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Activate user (Admin only)' })
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Activate user' })
   activate(@Param('id') id: string) {
     return this.usersService.activate(id);
   }
 
   @Delete(':id')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Delete user (Admin only)' })
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Delete user' })
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);
   }
