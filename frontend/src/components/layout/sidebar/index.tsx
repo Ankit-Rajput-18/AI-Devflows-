@@ -1,15 +1,16 @@
-﻿'use client';
+'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, FolderKanban, CheckSquare, Brain,
   FileText, MessageSquare, Calendar, Files,
-  BarChart3, Settings, LogOut, ChevronLeft,
+  BarChart3, Settings, LogOut, ChevronLeft, Bell,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/slices/authStore';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getInitials } from '@/lib/utils';
 
 const menuItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -20,14 +21,26 @@ const menuItems = [
   { name: 'Chat', href: '/chat', icon: MessageSquare },
   { name: 'Calendar', href: '/calendar', icon: Calendar },
   { name: 'Files', href: '/files', icon: Files },
+  { name: 'Notifications', href: '/notifications', icon: Bell },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout } = useAuthStore();
   const [collapsed, setCollapsed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
 
   return (
     <aside className={cn(
@@ -64,6 +77,7 @@ export function Sidebar() {
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-accent hover:text-foreground'
               )}
+              title={collapsed ? item.name : undefined}
             >
               <item.icon className="w-5 h-5 flex-shrink-0" />
               {!collapsed && <span>{item.name}</span>}
@@ -73,14 +87,21 @@ export function Sidebar() {
       </nav>
 
       <div className="p-2 border-t">
-        {!collapsed && user && (
+        {!collapsed && mounted && user && (
           <div className="px-3 py-2 mb-2">
-            <p className="text-sm font-medium truncate">{user.name}</p>
-            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
+                {getInitials(user.name)}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{user.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+              </div>
+            </div>
           </div>
         )}
         <button
-          onClick={logout}
+          onClick={handleLogout}
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm w-full text-muted-foreground hover:bg-destructive hover:text-destructive-foreground transition"
         >
           <LogOut className="w-5 h-5" />

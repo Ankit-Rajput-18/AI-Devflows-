@@ -1,4 +1,4 @@
-﻿import {
+import {
   Controller,
   Get,
   Post,
@@ -37,10 +37,14 @@ export class ChatController {
   @ApiOperation({ summary: 'Get room messages' })
   getMessages(
     @Param('roomId') roomId: string,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.chatService.getMessages(roomId, page, limit);
+    return this.chatService.getMessages(
+      roomId,
+      page ? parseInt(page) : undefined,
+      limit ? parseInt(limit) : undefined,
+    );
   }
 
   @Post('rooms/:roomId/messages')

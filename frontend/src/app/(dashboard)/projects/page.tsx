@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner, EmptyState } from '@/components/shared';
-import { FolderKanban, Plus, Users, CheckSquare, Search } from 'lucide-react';
+import { FolderKanban, Plus, Users, CheckSquare, Search, Trash2, MoreVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import type { Project } from '@/types';
@@ -22,7 +22,7 @@ export default function ProjectsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['projects', search],
-    queryFn: () => projectsApi.getAll({ search }).then((r) => r.data),
+    queryFn: () => projectsApi.getAll({ search: search || undefined }).then((r) => r.data),
   });
 
   const createMutation = useMutation({
@@ -33,7 +33,19 @@ export default function ProjectsPage() {
       setForm({ name: '', description: '', color: '#3b82f6' });
       toast.success('Project created!');
     },
-    onError: () => toast.error('Failed to create project'),
+    onError: (err: any) => {
+      const msg = err.response?.data?.message;
+      toast.error(Array.isArray(msg) ? msg[0] : msg || 'Failed to create project');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => projectsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      toast.success('Project deleted!');
+    },
+    onError: () => toast.error('Failed to delete project'),
   });
 
   const handleCreate = (e: React.FormEvent) => {
@@ -43,18 +55,12 @@ export default function ProjectsPage() {
 
   const projects: Project[] = data?.data || [];
 
-  const statusColors: Record<string, string> = {
-    ACTIVE: 'success',
-    ARCHIVED: 'secondary',
-    COMPLETED: 'default',
-  };
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Projects</h1>
-          <p className="text-muted-foreground">Manage your projects</p>
+          <p className="text-muted-foreground">{projects.length} projects</p>
         </div>
         <Button onClick={() => setShowCreate(true)}>
           <Plus className="w-4 h-4 mr-2" /> New Project
@@ -84,22 +90,24 @@ export default function ProjectsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map((project) => (
-            <Link key={project.id} href={'/projects/' + project.id}>
-              <Card className="p-6 hover:shadow-md transition cursor-pointer group">
+            <Card key={project.id} className="p-6 hover:shadow-md transition group relative">
+              <Link href={'/projects/' + project.id} className="block">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div
                       className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
-                      style={{ backgroundColor: project.color }}
+                      style={{ backgroundColor: project.color || '#3b82f6' }}
                     >
-                      {project.name[0]}
+                      {project.name?.[0] || 'P'}
                     </div>
                     <div>
                       <h3 className="font-semibold group-hover:text-primary transition">{project.name}</h3>
                       <p className="text-xs text-muted-foreground">{project.owner?.name}</p>
                     </div>
                   </div>
-                  <Badge variant={statusColors[project.status] as any}>{project.status}</Badge>
+                  <Badge variant={project.status === 'ACTIVE' ? 'success' : 'secondary'}>
+                    {project.status}
+                  </Badge>
                 </div>
 
                 {project.description && (
@@ -116,8 +124,22 @@ export default function ProjectsPage() {
                     <span>{project._count?.tasks || 0} tasks</span>
                   </div>
                 </div>
-              </Card>
-            </Link>
+              </Link>
+
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (confirm('Delete project "' + project.name + '"?')) {
+                    deleteMutation.mutate(project.id);
+                  }
+                }}
+                className="absolute top-4 right-4 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-destructive transition"
+                title="Delete project"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </Card>
           ))}
         </div>
       )}
@@ -125,7 +147,7 @@ export default function ProjectsPage() {
       <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Create New Project">
         <form onSubmit={handleCreate} className="space-y-4">
           <Input
-            label="Project Name"
+            label="Project Name *"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             placeholder="My Awesome Project"
@@ -142,12 +164,17 @@ export default function ProjectsPage() {
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium">Color</label>
-            <input
-              type="color"
-              value={form.color}
-              onChange={(e) => setForm({ ...form, color: e.target.value })}
-              className="w-full h-10 rounded cursor-pointer"
-            />
+            <div className="flex gap-2">
+              {['#3b82f6', '#22c55e', '#ef4444', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4'].map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setForm({ ...form, color: c })}
+                  className={'w-8 h-8 rounded-full border-2 transition ' + (form.color === c ? 'border-foreground scale-110' : 'border-transparent')}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
           </div>
           <div className="flex gap-3 justify-end">
             <Button variant="outline" type="button" onClick={() => setShowCreate(false)}>Cancel</Button>

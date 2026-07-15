@@ -1,4 +1,4 @@
-﻿import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateChatRoomDto, SendMessageDto } from './dto';
 
@@ -46,11 +46,12 @@ export class ChatService {
     return { data: rooms };
   }
 
-  async getMessages(roomId: string, page: number = 1, limit: number = 50) {
+  async getMessages(roomId: string, page?: number, limit?: number) {
     const room = await this.prisma.chatRoom.findUnique({ where: { id: roomId } });
     if (!room) throw new NotFoundException('Chat room not found');
 
-    const skip = (page - 1) * limit;
+    const take = limit || 50;
+    const skip = page ? (page - 1) * take : 0;
 
     const [messages, total] = await Promise.all([
       this.prisma.chatMessage.findMany({
@@ -60,16 +61,16 @@ export class ChatService {
             select: { id: true, name: true, email: true, avatar: true },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'asc' },
         skip,
-        take: limit,
+        take,
       }),
       this.prisma.chatMessage.count({ where: { roomId } }),
     ]);
 
     return {
-      data: messages.reverse(),
-      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      data: messages,
+      pagination: { total, page: page || 1, limit: take, totalPages: Math.ceil(total / take) },
     };
   }
 
@@ -80,7 +81,7 @@ export class ChatService {
     const message = await this.prisma.chatMessage.create({
       data: {
         content: dto.content,
-        type: (dto.type as any) || 'TEXT',
+        type: dto.type || 'TEXT',
         roomId,
         senderId: userId,
         fileUrl: dto.fileUrl,
@@ -98,6 +99,7 @@ export class ChatService {
       data: { updatedAt: new Date() },
     });
 
+    this.logger.log('Message sent in room: ' + roomId);
     return { data: message };
   }
 
