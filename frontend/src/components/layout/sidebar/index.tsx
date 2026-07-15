@@ -9,8 +9,11 @@ import {
   BarChart3, Settings, LogOut, ChevronLeft, Bell,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/slices/authStore';
+import { authApi } from '@/services/api';
 import { useState, useEffect } from 'react';
 import { getInitials } from '@/lib/utils';
+import { toast } from 'sonner';
+import Cookies from 'js-cookie';
 
 const menuItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -33,13 +36,17 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch (e) {}
+    Cookies.remove('accessToken');
+    Cookies.remove('refreshToken');
     logout();
-    router.push('/login');
+    toast.success('Logged out successfully');
+    router.push('/');
   };
 
   return (
@@ -50,21 +57,18 @@ export function Sidebar() {
       <div className="p-4 flex items-center justify-between border-b">
         {!collapsed && (
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">DF</span>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+              <span className="text-white font-bold text-sm">DF</span>
             </div>
             <span className="font-bold text-lg">DevFlow AI</span>
           </Link>
         )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-1 rounded hover:bg-accent"
-        >
+        <button onClick={() => setCollapsed(!collapsed)} className="p-1 rounded hover:bg-accent">
           <ChevronLeft className={cn('w-5 h-5 transition', collapsed && 'rotate-180')} />
         </button>
       </div>
 
-      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+      <nav className="flex-1 p-2 space-y-1 overflow-y-auto scrollbar-hide">
         {menuItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
           return (
@@ -74,7 +78,7 @@ export function Sidebar() {
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition',
                 isActive
-                  ? 'bg-primary text-primary-foreground'
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/20'
                   : 'text-muted-foreground hover:bg-accent hover:text-foreground'
               )}
               title={collapsed ? item.name : undefined}
@@ -90,7 +94,7 @@ export function Sidebar() {
         {!collapsed && mounted && user && (
           <div className="px-3 py-2 mb-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
                 {getInitials(user.name)}
               </div>
               <div className="min-w-0">
@@ -102,7 +106,7 @@ export function Sidebar() {
         )}
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm w-full text-muted-foreground hover:bg-destructive hover:text-destructive-foreground transition"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm w-full text-muted-foreground hover:bg-destructive hover:text-white transition"
         >
           <LogOut className="w-5 h-5" />
           {!collapsed && <span>Logout</span>}
