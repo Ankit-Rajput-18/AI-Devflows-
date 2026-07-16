@@ -5,8 +5,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, FolderKanban, CheckSquare, Brain,
-  FileText, MessageSquare, Calendar, Files,
+  FileText, MessageSquare, Calendar, Files, Zap,
   BarChart3, Settings, LogOut, ChevronLeft, Bell,
+  Users, User,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/slices/authStore';
 import { authApi } from '@/services/api';
@@ -19,6 +20,8 @@ const menuItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Projects', href: '/projects', icon: FolderKanban },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare },
+  { name: 'Sprints', href: '/sprints', icon: Zap },
+  { name: 'Team', href: '/team', icon: Users },
   { name: 'AI Review', href: '/ai-review', icon: Brain },
   { name: 'AI Docs', href: '/ai-docs', icon: FileText },
   { name: 'Chat', href: '/chat', icon: MessageSquare },
@@ -39,9 +42,7 @@ export function Sidebar() {
   useEffect(() => { setMounted(true); }, []);
 
   const handleLogout = async () => {
-    try {
-      await authApi.logout();
-    } catch (e) {}
+    try { await authApi.logout(); } catch (e) {}
     Cookies.remove('accessToken');
     Cookies.remove('refreshToken');
     logout();
@@ -51,7 +52,7 @@ export function Sidebar() {
 
   return (
     <aside className={cn(
-      'h-screen bg-card border-r flex flex-col transition-all duration-300',
+      'h-screen bg-card border-r flex flex-col transition-all duration-300 flex-shrink-0',
       collapsed ? 'w-16' : 'w-64'
     )}>
       <div className="p-4 flex items-center justify-between border-b">
@@ -60,15 +61,29 @@ export function Sidebar() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
               <span className="text-white font-bold text-sm">DF</span>
             </div>
-            <span className="font-bold text-lg">DevFlow AI</span>
+            <span className="font-bold text-lg bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
+              DevFlow AI
+            </span>
           </Link>
         )}
-        <button onClick={() => setCollapsed(!collapsed)} className="p-1 rounded hover:bg-accent">
-          <ChevronLeft className={cn('w-5 h-5 transition', collapsed && 'rotate-180')} />
-        </button>
+        {collapsed && (
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto">
+            <span className="text-white font-bold text-sm">DF</span>
+          </div>
+        )}
+        {!collapsed && (
+          <button onClick={() => setCollapsed(true)} className="p-1 rounded hover:bg-accent">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        )}
+        {collapsed && (
+          <button onClick={() => setCollapsed(false)} className="absolute left-14 top-4 p-1 rounded-lg bg-card border shadow-md hover:bg-accent z-10">
+            <ChevronLeft className="w-4 h-4 rotate-180" />
+          </button>
+        )}
       </div>
 
-      <nav className="flex-1 p-2 space-y-1 overflow-y-auto scrollbar-hide">
+      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto scrollbar-hide">
         {menuItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
           return (
@@ -76,7 +91,7 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all',
                 isActive
                   ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/20'
                   : 'text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -92,21 +107,24 @@ export function Sidebar() {
 
       <div className="p-2 border-t">
         {!collapsed && mounted && user && (
-          <div className="px-3 py-2 mb-2">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
-                {getInitials(user.name)}
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate">{user.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-              </div>
+          <Link
+            href="/profile"
+            className="flex items-center gap-2 px-3 py-2 mb-1 rounded-xl hover:bg-accent transition cursor-pointer group"
+          >
+            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+              {getInitials(user.name)}
             </div>
-          </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium truncate">{user.name}</p>
+              <p className="text-xs text-muted-foreground truncate">{user.role}</p>
+            </div>
+            <User className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
+          </Link>
         )}
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm w-full text-muted-foreground hover:bg-destructive hover:text-white transition"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm w-full text-muted-foreground hover:bg-destructive hover:text-white transition"
+          title={collapsed ? 'Logout' : undefined}
         >
           <LogOut className="w-5 h-5" />
           {!collapsed && <span>Logout</span>}
