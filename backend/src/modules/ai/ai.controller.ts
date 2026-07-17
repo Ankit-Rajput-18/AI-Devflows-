@@ -1,4 +1,4 @@
-﻿import {
+import {
   Controller,
   Post,
   Get,
@@ -11,13 +11,29 @@ import { AiService } from './ai.service';
 import { CodeReviewDto, BugDetectionDto, PRSummaryDto, DocGeneratorDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { GeminiService } from './services/gemini.service';
 
 @ApiTags('AI')
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
 export class AiController {
-  constructor(private aiService: AiService) {}
+  constructor(
+    private aiService: AiService,
+    private geminiService: GeminiService,
+  ) {}
+
+  @Get('status')
+  @ApiOperation({ summary: 'Check AI service status' })
+  getStatus() {
+    return {
+      data: {
+        aiAvailable: this.geminiService.isAIAvailable(),
+        model: 'gemini-1.5-flash',
+        status: this.geminiService.isAIAvailable() ? 'Real AI Active' : 'Mock Mode',
+      },
+    };
+  }
 
   @Post('review')
   @ApiOperation({ summary: 'AI Code Review' })

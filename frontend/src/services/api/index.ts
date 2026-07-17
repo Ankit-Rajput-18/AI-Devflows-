@@ -1,4 +1,4 @@
-﻿import api from '../../config/api';
+import api from '../../config/api';
 
 export const authApi = {
   register: (data: { name: string; email: string; password: string }) =>
@@ -99,6 +99,9 @@ export const sprintsApi = {
 };
 
 export const aiApi = {
+  getStatus: () =>
+    api.get('/ai/status'),
+
   codeReview: (data: { code: string; language: string }) =>
     api.post('/ai/review', data),
 
