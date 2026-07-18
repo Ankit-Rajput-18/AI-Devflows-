@@ -1,26 +1,32 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { chatApi } from '@/services/api';
+import { getChatSocket } from '@/services/socket';
+import { useAuthStore } from '@/store/slices/authStore';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { Input } from '@/components/ui/input';
-import { MessageSquare, Send, Plus, Hash, Search, Smile } from 'lucide-react';
-import { useAuthStore } from '@/store/slices/authStore';
+import { MessageSquare, Send, Plus, Hash, Search, Smile, Wifi, WifiOff } from 'lucide-react';
 import { getInitials, timeAgo } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ChatPage() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
+
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [showCreateRoom, setShowCreateRoom] = useState(false);
   const [roomForm, setRoomForm] = useState({ name: '', description: '' });
   const [searchChannels, setSearchChannels] = useState('');
+  const [isConnected, setIsConnected] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<any>(null);
 
   const { data: roomsData } = useQuery({
     queryKey: ['chat-rooms'],
@@ -29,17 +35,9 @@ export default function ChatPage() {
 
   const { data: messagesData } = useQuery({
     queryKey: ['chat-messages', selectedRoom],
-    queryFn: () => selectedRoom ? chatApi.getMessages(selectedRoom).then((r) => r.data) : null,
+    queryFn: () =>
+      selectedRoom ? chatApi.getMessages(selectedRoom).then((r) => r.data) : null,
     enabled: !!selectedRoom,
-    refetchInterval: 3000,
-  });
-
-  const sendMutation = useMutation({
-    mutationFn: () => chatApi.sendMessage(selectedRoom!, { content: message }),
-    onSuccess: () => {
-      setMessage('');
-      queryClient.invalidateQueries({ queryKey: ['chat-messages', selectedRoom] });
-    },
   });
 
   const createRoomMutation = useMutation({
@@ -48,9 +46,77 @@ export default function ChatPage() {
       queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
       setShowCreateRoom(false);
       setRoomForm({ name: '', description: '' });
-      toast.success('Channel created!');
+      toast.success('Channel created');
     },
   });
+
+  useEffect(() => {
+    if (!user) return;
+
+    const socket = getChatSocket();
+    socketRef.current = socket;
+
+    socket.connect();
+
+    socket.on('connect', () => {
+      setIsConnected(true);
+      toast.success('Chat connected');
+    });
+
+    socket.on('disconnect', () => {
+      setIsConnected(false);
+    });
+
+    socket.on('new_message', (newMessage: any) => {
+      queryClient.setQueryData(['chat-messages', newMessage.roomId], (old: any) => {
+        if (!old?.data) return old;
+        const exists = old.data.some((m: any) => m.id === newMessage.id);
+        if (exists) return old;
+        return {
+          ...old,
+          data: [...old.data, newMessage],
+        };
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
+    });
+
+    socket.on('user_typing', (data: any) => {
+      setTypingUsers((prev) => {
+        if (prev.includes(data.userName)) return prev;
+        return [...prev, data.userName];
+      });
+    });
+
+    socket.on('user_stop_typing', (data: any) => {
+      setTypingUsers((prev) => prev.filter((u) => u !== data.userName));
+    });
+
+    return () => {
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('new_message');
+      socket.off('user_typing');
+      socket.off('user_stop_typing');
+      socket.disconnect();
+    };
+  }, [user, queryClient]);
+
+  useEffect(() => {
+    if (!selectedRoom || !socketRef.current || !user) return;
+
+    socketRef.current.emit('join_room', {
+      roomId: selectedRoom,
+      userId: user.id,
+    });
+
+    return () => {
+      socketRef.current?.emit('leave_room', {
+        roomId: selectedRoom,
+        userId: user.id,
+      });
+    };
+  }, [selectedRoom, user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -59,24 +125,78 @@ export default function ChatPage() {
   const rooms = roomsData?.data || [];
   const messages = messagesData?.data || [];
   const selectedRoomData = rooms.find((r: any) => r.id === selectedRoom);
-  const filteredRooms = rooms.filter((r: any) => r.name.toLowerCase().includes(searchChannels.toLowerCase()));
+
+  const filteredRooms = rooms.filter((r: any) =>
+    r.name.toLowerCase().includes(searchChannels.toLowerCase()),
+  );
+
+  const sendMessage = () => {
+    if (!message.trim() || !selectedRoom || !user) return;
+
+    if (socketRef.current && isConnected) {
+      socketRef.current.emit('send_message', {
+        roomId: selectedRoom,
+        content: message,
+        userId: user.id,
+        type: 'TEXT',
+      });
+
+      setMessage('');
+    } else {
+      chatApi
+        .sendMessage(selectedRoom, { content: message })
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ['chat-messages', selectedRoom] });
+          setMessage('');
+        })
+        .catch(() => toast.error('Failed to send message'));
+    }
+  };
+
+  const handleTyping = () => {
+    if (!selectedRoom || !user || !socketRef.current) return;
+
+    socketRef.current.emit('typing', {
+      roomId: selectedRoom,
+      userId: user.id,
+      userName: user.name,
+    });
+
+    setTimeout(() => {
+      socketRef.current?.emit('stop_typing', {
+        roomId: selectedRoom,
+        userId: user.id,
+        userName: user.name,
+      });
+    }, 1500);
+  };
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] rounded-3xl bg-white dark:bg-[#09090b] border overflow-hidden shadow-2xl">
-      {/* Sidebar */}
-      <div className="w-72 border-r flex flex-col bg-muted/30">
-        <div className="p-5 border-b">
+    <div className="flex h-[calc(100vh-8rem)] rounded-3xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-2xl">
+      <div className="w-72 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50 dark:bg-slate-900/50">
+        <div className="p-5 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-lg flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-blue-500" /> Channels
+              <MessageSquare className="w-5 h-5 text-blue-500" />
+              Channels
             </h2>
-            <button
-              onClick={() => setShowCreateRoom(true)}
-              className="w-8 h-8 rounded-xl bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600 transition-colors shadow-md"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
+
+            <div className="flex items-center gap-2">
+              {isConnected ? (
+                <Wifi className="w-4 h-4 text-green-500" />
+              ) : (
+                <WifiOff className="w-4 h-4 text-red-500" />
+              )}
+
+              <button
+                onClick={() => setShowCreateRoom(true)}
+                className="w-8 h-8 rounded-xl bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600 transition shadow-md"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
           </div>
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
@@ -84,7 +204,7 @@ export default function ChatPage() {
               placeholder="Search channels..."
               value={searchChannels}
               onChange={(e) => setSearchChannels(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 rounded-xl border bg-white dark:bg-black text-sm outline-none focus:border-blue-500"
+              className="w-full pl-10 pr-3 py-2 rounded-xl border bg-white dark:bg-slate-950 text-sm outline-none focus:border-blue-500"
             />
           </div>
         </div>
@@ -93,7 +213,10 @@ export default function ChatPage() {
           {filteredRooms.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-sm text-muted-foreground">No channels yet</p>
-              <button onClick={() => setShowCreateRoom(true)} className="text-sm text-blue-600 mt-1 hover:underline">
+              <button
+                onClick={() => setShowCreateRoom(true)}
+                className="text-sm text-blue-600 mt-1 hover:underline"
+              >
                 Create one
               </button>
             </div>
@@ -103,15 +226,38 @@ export default function ChatPage() {
                 key={room.id}
                 whileHover={{ x: 4 }}
                 onClick={() => setSelectedRoom(room.id)}
-                className={'w-full p-3 text-left rounded-2xl transition-all flex items-center gap-3 group ' + (selectedRoom === room.id ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/25' : 'hover:bg-muted')}
+                className={
+                  'w-full p-3 text-left rounded-2xl transition-all flex items-center gap-3 group ' +
+                  (selectedRoom === room.id
+                    ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/25'
+                    : 'hover:bg-slate-200 dark:hover:bg-slate-800')
+                }
               >
-                <div className={'w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ' + (selectedRoom === room.id ? 'bg-white/20' : 'bg-blue-500/10')}>
-                  <Hash className={'w-4 h-4 ' + (selectedRoom === room.id ? 'text-white' : 'text-blue-500')} />
+                <div
+                  className={
+                    'w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ' +
+                    (selectedRoom === room.id ? 'bg-white/20' : 'bg-blue-500/10')
+                  }
+                >
+                  <Hash
+                    className={
+                      'w-4 h-4 ' +
+                      (selectedRoom === room.id ? 'text-white' : 'text-blue-500')
+                    }
+                  />
                 </div>
+
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-sm truncate">{room.name}</p>
                   {room.messages?.[0] && (
-                    <p className={'text-xs truncate ' + (selectedRoom === room.id ? 'text-white/70' : 'text-muted-foreground')}>
+                    <p
+                      className={
+                        'text-xs truncate ' +
+                        (selectedRoom === room.id
+                          ? 'text-white/70'
+                          : 'text-muted-foreground')
+                      }
+                    >
                       {room.messages[0].content}
                     </p>
                   )}
@@ -121,39 +267,44 @@ export default function ChatPage() {
           )}
         </div>
 
-        <div className="p-4 border-t bg-white dark:bg-black">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
                 {user ? getInitials(user.name) : 'U'}
               </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white dark:border-black" />
+              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white dark:border-slate-950" />
             </div>
+
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold truncate">{user?.name}</p>
-              <p className="text-xs text-muted-foreground truncate">Online</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {isConnected ? 'Online' : 'Offline'}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Chat Area */}
       <div className="flex-1 flex flex-col">
         {selectedRoom ? (
           <>
-            <div className="p-5 border-b bg-white dark:bg-black flex items-center gap-3">
+            <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
                 <Hash className="w-5 h-5 text-blue-500" />
               </div>
+
               <div>
                 <h3 className="font-bold text-lg">{selectedRoomData?.name}</h3>
                 {selectedRoomData?.description && (
-                  <p className="text-xs text-muted-foreground">{selectedRoomData.description}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedRoomData.description}
+                  </p>
                 )}
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-muted/20">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50 dark:bg-slate-900/30">
               <AnimatePresence>
                 {messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full">
@@ -161,12 +312,15 @@ export default function ChatPage() {
                       <MessageSquare className="w-10 h-10 text-blue-500" />
                     </div>
                     <h3 className="text-xl font-bold mb-2">Start the conversation</h3>
-                    <p className="text-sm text-muted-foreground">Be the first to send a message!</p>
+                    <p className="text-sm text-muted-foreground">
+                      Be the first to send a message.
+                    </p>
                   </div>
                 ) : (
                   messages.map((msg: any, index: number) => {
                     const isMe = msg.senderId === user?.id;
-                    const showAvatar = index === 0 || messages[index - 1]?.senderId !== msg.senderId;
+                    const showAvatar =
+                      index === 0 || messages[index - 1]?.senderId !== msg.senderId;
 
                     return (
                       <motion.div
@@ -182,14 +336,38 @@ export default function ChatPage() {
                         ) : (
                           <div className="w-10 flex-shrink-0" />
                         )}
-                        <div className={'max-w-[70%] ' + (isMe ? 'items-end' : 'items-start') + ' flex flex-col'}>
+
+                        <div
+                          className={
+                            'max-w-[70%] ' +
+                            (isMe ? 'items-end' : 'items-start') +
+                            ' flex flex-col'
+                          }
+                        >
                           {showAvatar && (
-                            <div className={'flex items-center gap-2 mb-1 ' + (isMe ? 'flex-row-reverse' : '')}>
-                              <span className="text-sm font-bold">{msg.sender?.name}</span>
-                              <span className="text-xs text-muted-foreground">{timeAgo(msg.createdAt)}</span>
+                            <div
+                              className={
+                                'flex items-center gap-2 mb-1 ' +
+                                (isMe ? 'flex-row-reverse' : '')
+                              }
+                            >
+                              <span className="text-sm font-bold">
+                                {msg.sender?.name}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {timeAgo(msg.createdAt)}
+                              </span>
                             </div>
                           )}
-                          <div className={'px-4 py-2.5 rounded-2xl text-sm break-words shadow-sm ' + (isMe ? 'bg-blue-500 text-white rounded-tr-sm' : 'bg-white dark:bg-black rounded-tl-sm')}>
+
+                          <div
+                            className={
+                              'px-4 py-2.5 rounded-2xl text-sm break-words shadow-sm ' +
+                              (isMe
+                                ? 'bg-blue-500 text-white rounded-tr-sm'
+                                : 'bg-white dark:bg-slate-950 rounded-tl-sm')
+                            }
+                          >
                             {msg.content}
                           </div>
                         </div>
@@ -198,25 +376,43 @@ export default function ChatPage() {
                   })
                 )}
               </AnimatePresence>
+
+              {typingUsers.length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  {typingUsers.join(', ')} typing...
+                </div>
+              )}
+
               <div ref={messagesEndRef} />
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); if (message.trim()) sendMutation.mutate(); }} className="p-4 border-t bg-white dark:bg-black">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendMessage();
+              }}
+              className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950"
+            >
               <div className="flex gap-3 items-center">
-                <button type="button" className="p-2 rounded-xl hover:bg-muted transition-colors">
+                <button type="button" className="p-2 rounded-xl hover:bg-muted transition">
                   <Smile className="w-5 h-5 text-muted-foreground" />
                 </button>
+
                 <input
                   type="text"
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={(e) => {
+                    setMessage(e.target.value);
+                    handleTyping();
+                  }}
                   placeholder={'Message #' + (selectedRoomData?.name || 'channel')}
-                  className="flex-1 px-4 py-3 rounded-2xl border-2 border-muted bg-transparent text-sm focus:border-blue-500 outline-none transition-all"
+                  className="flex-1 px-4 py-3 rounded-2xl border-2 border-slate-200 dark:border-slate-800 bg-transparent text-sm focus:border-blue-500 outline-none transition-all"
                 />
+
                 <button
                   type="submit"
                   disabled={!message.trim()}
-                  className="w-12 h-12 rounded-2xl bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600 disabled:opacity-50 transition-all shadow-lg"
+                  className="w-12 h-12 rounded-2xl bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600 disabled:opacity-50 transition shadow-lg"
                 >
                   <Send className="w-5 h-5" />
                 </button>
@@ -224,15 +420,20 @@ export default function ChatPage() {
             </form>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center bg-muted/20">
+          <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-900/30">
             <div className="text-center">
               <div className="w-24 h-24 mx-auto rounded-3xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-6 shadow-2xl shadow-blue-500/25">
                 <MessageSquare className="w-12 h-12 text-white" />
               </div>
+
               <h3 className="text-2xl font-bold mb-2">Welcome to Chat</h3>
-              <p className="text-muted-foreground mb-6">Select a channel to start messaging</p>
+              <p className="text-muted-foreground mb-6">
+                Select a channel to start messaging.
+              </p>
+
               <Button onClick={() => setShowCreateRoom(true)}>
-                <Plus className="w-4 h-4 mr-2" /> Create Channel
+                <Plus className="w-4 h-4 mr-2" />
+                Create Channel
               </Button>
             </div>
           </div>
@@ -240,7 +441,13 @@ export default function ChatPage() {
       </div>
 
       <Modal isOpen={showCreateRoom} onClose={() => setShowCreateRoom(false)} title="Create Channel">
-        <form onSubmit={(e) => { e.preventDefault(); createRoomMutation.mutate(roomForm); }} className="space-y-5">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            createRoomMutation.mutate(roomForm);
+          }}
+          className="space-y-5"
+        >
           <Input
             label="Channel Name"
             value={roomForm.name}
@@ -248,15 +455,23 @@ export default function ChatPage() {
             placeholder="general, design, backend..."
             required
           />
+
           <Input
-            label="Description (optional)"
+            label="Description"
             value={roomForm.description}
-            onChange={(e) => setRoomForm({ ...roomForm, description: e.target.value })}
+            onChange={(e) =>
+              setRoomForm({ ...roomForm, description: e.target.value })
+            }
             placeholder="What is this channel about?"
           />
-          <div className="flex gap-3 justify-end">
-            <Button variant="outline" type="button" onClick={() => setShowCreateRoom(false)}>Cancel</Button>
-            <Button type="submit" loading={createRoomMutation.isPending}>Create</Button>
+
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" type="button" onClick={() => setShowCreateRoom(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={createRoomMutation.isPending}>
+              Create
+            </Button>
           </div>
         </form>
       </Modal>

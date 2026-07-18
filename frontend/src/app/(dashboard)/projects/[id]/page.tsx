@@ -1,23 +1,48 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { projectsApi, tasksApi, usersApi } from '@/services/api';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { Input } from '@/components/ui/input';
-import { LoadingSpinner, PageLoading } from '@/components/shared';
+import { PageLoading } from '@/components/shared';
 import {
-  Users, CheckSquare, ArrowLeft, Plus, Trash2,
-  UserPlus, Crown, Shield, Code2, Eye,
+  ArrowLeft,
+  Plus,
+  Users,
+  CheckSquare,
+  UserPlus,
+  Trash2,
+  Crown,
+  Shield,
+  Code2,
+  Eye,
+  GripVertical,
 } from 'lucide-react';
 import Link from 'next/link';
-import { getInitials } from '@/lib/utils';
 import { toast } from 'sonner';
-import { useAuthStore } from '@/store/slices/authStore';
+import { getInitials } from '@/lib/utils';
+
+const COLUMNS = [
+  { id: 'BACKLOG', title: 'Backlog', color: '#64748b' },
+  { id: 'TODO', title: 'To Do', color: '#3b82f6' },
+  { id: 'IN_PROGRESS', title: 'In Progress', color: '#f59e0b' },
+  { id: 'IN_REVIEW', title: 'In Review', color: '#8b5cf6' },
+  { id: 'DONE', title: 'Done', color: '#22c55e' },
+];
 
 const ROLE_ICONS: Record<string, any> = {
   OWNER: Crown,
@@ -27,41 +52,166 @@ const ROLE_ICONS: Record<string, any> = {
   VIEWER: Eye,
 };
 
-const ROLE_COLORS: Record<string, string> = {
-  OWNER: 'text-yellow-500',
-  ADMIN: 'text-red-500',
-  MANAGER: 'text-purple-500',
-  DEVELOPER: 'text-blue-500',
-  VIEWER: 'text-gray-500',
+const PRIORITY_VARIANT: Record<string, any> = {
+  LOW: 'outline',
+  MEDIUM: 'secondary',
+  HIGH: 'warning',
+  URGENT: 'destructive',
 };
+
+function DroppableColumn({
+  id,
+  title,
+  color,
+  children,
+  count,
+}: {
+  id: string;
+  title: string;
+  color: string;
+  count: number;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+
+  return (
+    <div ref={setNodeRef} className="w-72 flex-shrink-0">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
+        <h3 className="font-semibold text-sm">{title}</h3>
+        <span className="ml-auto text-xs rounded-full bg-muted px-2 py-0.5">
+          {count}
+        </span>
+      </div>
+
+      <div
+        className={
+          'min-h-[420px] rounded-3xl border-2 border-dashed p-3 space-y-3 transition-all ' +
+          (isOver
+            ? 'border-primary bg-primary/5 scale-[1.01]'
+            : 'border-border bg-muted/20')
+        }
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function DraggableTask({ task }: { task: any }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({
+      id: task.id,
+      data: { task },
+    });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Link href={'/tasks/' + task.id}>
+        <div className="group rounded-2xl border bg-card p-4 shadow-sm hover:shadow-xl transition-all cursor-pointer">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-semibold leading-snug line-clamp-2 group-hover:text-primary transition">
+              {task.title}
+            </p>
+
+            <button
+              {...listeners}
+              {...attributes}
+              onClick={(e) => e.preventDefault()}
+              className="p-1 rounded-lg hover:bg-muted cursor-grab active:cursor-grabbing"
+              title="Drag task"
+            >
+              <GripVertical className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
+
+          {task.description && (
+            <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+              {task.description}
+            </p>
+          )}
+
+          <div className="mt-4 flex items-center justify-between">
+            <Badge variant={PRIORITY_VARIANT[task.priority] || 'outline'}>
+              {task.priority}
+            </Badge>
+
+            {task.assignee ? (
+              <div
+                title={task.assignee.name}
+                className="h-7 w-7 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-bold flex items-center justify-center"
+              >
+                {getInitials(task.assignee.name)}
+              </div>
+            ) : (
+              <span className="text-xs text-muted-foreground">Unassigned</span>
+            )}
+          </div>
+        </div>
+      </Link>
+    </div>
+  );
+}
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.id as string;
-  const { user } = useAuthStore();
   const queryClient = useQueryClient();
+
+  const [activeTab, setActiveTab] = useState<'board' | 'members'>('board');
   const [showAddMember, setShowAddMember] = useState(false);
   const [showCreateTask, setShowCreateTask] = useState(false);
-  const [memberForm, setMemberForm] = useState({ userId: '', role: 'DEVELOPER' });
-  const [taskForm, setTaskForm] = useState({
-    title: '', description: '', priority: 'MEDIUM',
-    type: 'TASK', assigneeId: '', dueDate: '',
+
+  const [memberForm, setMemberForm] = useState({
+    userId: '',
+    role: 'DEVELOPER',
   });
-  const [activeTab, setActiveTab] = useState<'board' | 'members'>('board');
+
+  const [taskForm, setTaskForm] = useState({
+    title: '',
+    description: '',
+    priority: 'MEDIUM',
+    type: 'TASK',
+    assigneeId: '',
+    dueDate: '',
+  });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+  );
 
   const { data: projectData, isLoading } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => projectsApi.getById(projectId).then((r) => r.data),
   });
 
-  const { data: boardData } = useQuery({
+  const { data: boardData, refetch: refetchBoard } = useQuery({
     queryKey: ['board', projectId],
     queryFn: () => tasksApi.getBoard(projectId).then((r) => r.data),
   });
 
-  const { data: allUsersData } = useQuery({
+  const { data: usersData } = useQuery({
     queryKey: ['all-users'],
     queryFn: () => usersApi.getAll({ limit: 100 }).then((r) => r.data),
+  });
+
+  const updateTaskStatusMutation = useMutation({
+    mutationFn: ({ taskId, status }: { taskId: string; status: string }) =>
+      tasksApi.updateStatus(taskId, status),
+    onSuccess: () => {
+      refetchBoard();
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast.success('Task moved successfully');
+    },
+    onError: () => toast.error('Failed to move task'),
   });
 
   const addMemberMutation = useMutation({
@@ -70,7 +220,7 @@ export default function ProjectDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
       setShowAddMember(false);
       setMemberForm({ userId: '', role: 'DEVELOPER' });
-      toast.success('Member added!');
+      toast.success('Member added');
     },
     onError: (err: any) => {
       const msg = err.response?.data?.message;
@@ -79,24 +229,29 @@ export default function ProjectDetailPage() {
   });
 
   const removeMemberMutation = useMutation({
-    mutationFn: (memberId: string) => projectsApi.removeMember(projectId, memberId),
+    mutationFn: (userId: string) => projectsApi.removeMember(projectId, userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
-      toast.success('Member removed!');
+      toast.success('Member removed');
     },
-    onError: (err: any) => {
-      const msg = err.response?.data?.message;
-      toast.error(typeof msg === 'string' ? msg : 'Failed to remove member');
-    },
+    onError: () => toast.error('Failed to remove member'),
   });
 
   const createTaskMutation = useMutation({
     mutationFn: (data: any) => tasksApi.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['board', projectId] });
+      refetchBoard();
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
       setShowCreateTask(false);
-      setTaskForm({ title: '', description: '', priority: 'MEDIUM', type: 'TASK', assigneeId: '', dueDate: '' });
-      toast.success('Task created!');
+      setTaskForm({
+        title: '',
+        description: '',
+        priority: 'MEDIUM',
+        type: 'TASK',
+        assigneeId: '',
+        dueDate: '',
+      });
+      toast.success('Task created');
     },
     onError: (err: any) => {
       const msg = err.response?.data?.message;
@@ -107,189 +262,207 @@ export default function ProjectDetailPage() {
   if (isLoading) return <PageLoading />;
 
   const project = projectData?.data;
-  if (!project) return <div className="p-8 text-center">Project not found</div>;
+  if (!project) {
+    return (
+      <div className="min-h-[400px] flex flex-col items-center justify-center gap-4">
+        <p className="text-lg font-semibold">Project not found</p>
+        <Link href="/projects">
+          <Button>Back to Projects</Button>
+        </Link>
+      </div>
+    );
+  }
 
   const board = boardData?.data || {};
   const members = project.members || [];
-  const allUsers = allUsersData?.data || [];
+  const allUsers = usersData?.data || [];
 
-  const memberUserIds = members.map((m: any) => m.userId || m.user?.id);
-  const availableUsers = allUsers.filter((u: any) => !memberUserIds.includes(u.id));
+  const memberIds = members.map((m: any) => m.user?.id || m.userId);
+  const availableUsers = allUsers.filter((u: any) => !memberIds.includes(u.id));
 
-  const columns = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'];
-  const columnLabels: Record<string, string> = {
-    BACKLOG: 'Backlog', TODO: 'To Do', IN_PROGRESS: 'In Progress',
-    IN_REVIEW: 'In Review', DONE: 'Done',
-  };
-  const columnColors: Record<string, string> = {
-    BACKLOG: '#6b7280', TODO: '#3b82f6', IN_PROGRESS: '#f59e0b',
-    IN_REVIEW: '#8b5cf6', DONE: '#22c55e',
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const task = active.data.current?.task;
+    const newStatus = String(over.id);
+
+    if (!task || task.status === newStatus) return;
+
+    updateTaskStatusMutation.mutate({
+      taskId: String(active.id),
+      status: newStatus,
+    });
   };
 
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
+
     const payload: any = {
       title: taskForm.title,
-      projectId: projectId,
+      projectId,
       priority: taskForm.priority,
       type: taskForm.type,
     };
+
     if (taskForm.description) payload.description = taskForm.description;
     if (taskForm.assigneeId) payload.assigneeId = taskForm.assigneeId;
     if (taskForm.dueDate) payload.dueDate = taskForm.dueDate;
+
     createTaskMutation.mutate(payload);
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center gap-4">
-        <Link href="/projects" className="p-2 rounded-lg hover:bg-accent transition">
+    <div className="space-y-8 pb-10">
+      <div className="flex items-center gap-4 flex-wrap">
+        <Link href="/projects" className="p-2 rounded-xl hover:bg-accent transition">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <div className="flex items-center gap-3 flex-1">
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg"
-            style={{ backgroundColor: project.color || '#3b82f6' }}
-          >
-            {project.name?.[0] || 'P'}
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">{project.name}</h1>
-            {project.description && (
-              <p className="text-sm text-muted-foreground">{project.description}</p>
-            )}
-          </div>
+
+        <div
+          className="h-14 w-14 rounded-2xl flex items-center justify-center text-white text-xl font-bold shadow-lg"
+          style={{ backgroundColor: project.color || '#3b82f6' }}
+        >
+          {project.name?.[0] || 'P'}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <h1 className="text-3xl font-bold truncate">{project.name}</h1>
+          <p className="text-muted-foreground truncate">
+            {project.description || 'No description'}
+          </p>
         </div>
 
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowAddMember(true)}>
-            <UserPlus className="w-4 h-4 mr-2" /> Add Member
+            <UserPlus className="w-4 h-4 mr-2" />
+            Add Member
           </Button>
+
           <Button onClick={() => setShowCreateTask(true)}>
-            <Plus className="w-4 h-4 mr-2" /> Add Task
+            <Plus className="w-4 h-4 mr-2" />
+            Add Task
           </Button>
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+      <div className="flex items-center gap-6 flex-wrap">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Users className="w-4 h-4" />
           {members.length} members
         </div>
-        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <CheckSquare className="w-4 h-4" />
           {project._count?.tasks || 0} tasks
         </div>
 
-        <div className="flex -space-x-2 ml-4">
-          {members.slice(0, 6).map((member: any) => (
+        <div className="flex -space-x-2">
+          {members.slice(0, 6).map((m: any) => (
             <div
-              key={member.id}
-              className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold border-2 border-background"
-              title={member.user?.name + ' (' + member.role + ')'}
+              key={m.id}
+              title={m.user?.name + ' - ' + m.role}
+              className="h-9 w-9 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-bold flex items-center justify-center border-2 border-background"
             >
-              {getInitials(member.user?.name || 'U')}
+              {getInitials(m.user?.name || 'U')}
             </div>
           ))}
-          {members.length > 6 && (
-            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold border-2 border-background">
-              +{members.length - 6}
-            </div>
-          )}
         </div>
       </div>
 
       <div className="flex gap-2 border-b">
         <button
           onClick={() => setActiveTab('board')}
-          className={'px-4 py-2 text-sm font-medium border-b-2 transition ' + (activeTab === 'board' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground')}
+          className={
+            'px-4 py-3 text-sm font-semibold border-b-2 transition ' +
+            (activeTab === 'board'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground')
+          }
         >
-          <CheckSquare className="w-4 h-4 inline mr-1" /> Task Board
+          Task Board
         </button>
+
         <button
           onClick={() => setActiveTab('members')}
-          className={'px-4 py-2 text-sm font-medium border-b-2 transition ' + (activeTab === 'members' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground')}
+          className={
+            'px-4 py-3 text-sm font-semibold border-b-2 transition ' +
+            (activeTab === 'members'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground')
+          }
         >
-          <Users className="w-4 h-4 inline mr-1" /> Members ({members.length})
+          Members ({members.length})
         </button>
       </div>
 
       {activeTab === 'board' && (
-        <div className="grid grid-cols-5 gap-3 overflow-x-auto">
-          {columns.map((col) => {
-            const colTasks = board[col] || [];
-            return (
-              <div key={col} className="min-w-[220px]">
-                <div className="flex items-center gap-2 mb-3 px-1">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: columnColors[col] }} />
-                  <span className="text-sm font-semibold">{columnLabels[col]}</span>
-                  <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{colTasks.length}</span>
-                </div>
-                <div className="space-y-2 min-h-[200px]">
-                  {colTasks.map((task: any) => (
-                    <div key={task.id} className="p-3 rounded-lg border bg-card hover:shadow-md transition cursor-pointer group">
-                      <p className="text-sm font-medium line-clamp-2">{task.title}</p>
-                      <div className="flex items-center justify-between mt-2">
-                        <Badge
-                          variant={task.priority === 'URGENT' ? 'destructive' : task.priority === 'HIGH' ? 'warning' : 'outline'}
-                          className="text-xs"
-                        >
-                          {task.priority}
-                        </Badge>
-                        {task.assignee && (
-                          <div
-                            className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold"
-                            title={task.assignee.name}
-                          >
-                            {getInitials(task.assignee.name)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          <div className="overflow-x-auto pb-4">
+            <div className="flex gap-4 min-w-max">
+              {COLUMNS.map((col) => {
+                const tasks = board[col.id] || [];
 
-                  {colTasks.length === 0 && (
-                    <div className="p-4 text-center rounded-lg border border-dashed">
-                      <p className="text-xs text-muted-foreground">No tasks</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                return (
+                  <DroppableColumn
+                    key={col.id}
+                    id={col.id}
+                    title={col.title}
+                    color={col.color}
+                    count={tasks.length}
+                  >
+                    {tasks.map((task: any) => (
+                      <DraggableTask key={task.id} task={task} />
+                    ))}
+
+                    {tasks.length === 0 && (
+                      <div className="text-center text-xs text-muted-foreground p-6">
+                        Drop tasks here
+                      </div>
+                    )}
+                  </DroppableColumn>
+                );
+              })}
+            </div>
+          </div>
+        </DndContext>
       )}
 
       {activeTab === 'members' && (
-        <div className="space-y-3">
+        <div className="grid gap-3">
           {members.map((member: any) => {
             const RoleIcon = ROLE_ICONS[member.role] || Code2;
-            const roleColor = ROLE_COLORS[member.role] || 'text-gray-500';
 
             return (
-              <div key={member.id} className="flex items-center justify-between p-4 rounded-xl border hover:bg-muted/30 transition group">
+              <div
+                key={member.id}
+                className="flex items-center justify-between p-4 rounded-2xl border bg-card hover:shadow-md transition group"
+              >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
+                  <div className="h-11 w-11 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold flex items-center justify-center">
                     {getInitials(member.user?.name || 'U')}
                   </div>
+
                   <div>
-                    <p className="text-sm font-medium">{member.user?.name}</p>
+                    <p className="font-semibold">{member.user?.name}</p>
                     <p className="text-xs text-muted-foreground">{member.user?.email}</p>
                   </div>
                 </div>
+
                 <div className="flex items-center gap-3">
-                  <div className={'flex items-center gap-1 text-sm ' + roleColor}>
-                    <RoleIcon className="w-4 h-4" />
-                    <span>{member.role}</span>
-                  </div>
+                  <Badge variant="outline" className="gap-1">
+                    <RoleIcon className="w-3.5 h-3.5" />
+                    {member.role}
+                  </Badge>
+
                   {member.role !== 'OWNER' && (
                     <button
                       onClick={() => {
-                        if (confirm('Remove ' + member.user?.name + ' from project?')) {
+                        if (confirm('Remove member?')) {
                           removeMemberMutation.mutate(member.user?.id || member.userId);
                         }
                       }}
-                      className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive opacity-0 group-hover:opacity-100 transition"
+                      className="p-2 rounded-xl text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -302,86 +475,127 @@ export default function ProjectDetailPage() {
       )}
 
       <Modal isOpen={showAddMember} onClose={() => setShowAddMember(false)} title="Add Member">
-        <form onSubmit={(e) => { e.preventDefault(); if (!memberForm.userId) { toast.error('Select a user'); return; } addMemberMutation.mutate(memberForm); }} className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Select User *</label>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!memberForm.userId) return toast.error('Select user');
+            addMemberMutation.mutate(memberForm);
+          }}
+          className="space-y-4"
+        >
+          <div className="space-y-2">
+            <label className="text-sm font-semibold">User</label>
             <select
               value={memberForm.userId}
               onChange={(e) => setMemberForm({ ...memberForm, userId: e.target.value })}
-              className="w-full px-3 py-2 rounded-md border bg-background text-sm focus:ring-2 focus:ring-primary outline-none"
-              required
+              className="w-full px-4 py-3 rounded-2xl border bg-background"
             >
-              <option value="">Choose a user to add</option>
+              <option value="">Select user</option>
               {availableUsers.map((u: any) => (
-                <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                <option key={u.id} value={u.id}>
+                  {u.name} - {u.email}
+                </option>
               ))}
             </select>
-            {availableUsers.length === 0 && (
-              <p className="text-xs text-muted-foreground">All users are already members</p>
-            )}
           </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Role</label>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold">Role</label>
             <select
               value={memberForm.role}
               onChange={(e) => setMemberForm({ ...memberForm, role: e.target.value })}
-              className="w-full px-3 py-2 rounded-md border bg-background text-sm focus:ring-2 focus:ring-primary outline-none"
+              className="w-full px-4 py-3 rounded-2xl border bg-background"
             >
+              <option value="VIEWER">Viewer</option>
               <option value="DEVELOPER">Developer</option>
               <option value="MANAGER">Manager</option>
               <option value="ADMIN">Admin</option>
-              <option value="VIEWER">Viewer</option>
             </select>
           </div>
-          <div className="flex gap-3 justify-end">
-            <Button variant="outline" type="button" onClick={() => setShowAddMember(false)}>Cancel</Button>
-            <Button type="submit" loading={addMemberMutation.isPending}>Add Member</Button>
+
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={() => setShowAddMember(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={addMemberMutation.isPending}>
+              Add Member
+            </Button>
           </div>
         </form>
       </Modal>
 
       <Modal isOpen={showCreateTask} onClose={() => setShowCreateTask(false)} title="Create Task">
         <form onSubmit={handleCreateTask} className="space-y-4">
-          <Input label="Task Title *" value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} placeholder="Task title" required />
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Description</label>
-            <textarea value={taskForm.description} onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} className="w-full px-3 py-2 rounded-md border bg-background text-sm min-h-[70px] focus:ring-2 focus:ring-primary outline-none resize-none" placeholder="Task description..." />
+          <Input
+            label="Title"
+            value={taskForm.title}
+            onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+            required
+          />
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold">Description</label>
+            <textarea
+              value={taskForm.description}
+              onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
+              className="w-full px-4 py-3 rounded-2xl border bg-background min-h-[90px]"
+            />
           </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Assign To</label>
-            <select value={taskForm.assigneeId} onChange={(e) => setTaskForm({ ...taskForm, assigneeId: e.target.value })} className="w-full px-3 py-2 rounded-md border bg-background text-sm">
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold">Assignee</label>
+            <select
+              value={taskForm.assigneeId}
+              onChange={(e) => setTaskForm({ ...taskForm, assigneeId: e.target.value })}
+              className="w-full px-4 py-3 rounded-2xl border bg-background"
+            >
               <option value="">Unassigned</option>
               {members.map((m: any) => (
-                <option key={m.user?.id || m.id} value={m.user?.id || m.userId}>{m.user?.name} ({m.role})</option>
+                <option key={m.user?.id} value={m.user?.id}>
+                  {m.user?.name} ({m.role})
+                </option>
               ))}
             </select>
           </div>
+
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Priority</label>
-              <select value={taskForm.priority} onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })} className="w-full px-3 py-2 rounded-md border bg-background text-sm">
-                <option value="LOW">Low</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HIGH">High</option>
-                <option value="URGENT">Urgent</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Type</label>
-              <select value={taskForm.type} onChange={(e) => setTaskForm({ ...taskForm, type: e.target.value })} className="w-full px-3 py-2 rounded-md border bg-background text-sm">
-                <option value="TASK">Task</option>
-                <option value="BUG">Bug</option>
-                <option value="FEATURE">Feature</option>
-              </select>
-            </div>
+            <select
+              value={taskForm.priority}
+              onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
+              className="px-4 py-3 rounded-2xl border bg-background"
+            >
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+              <option value="URGENT">Urgent</option>
+            </select>
+
+            <select
+              value={taskForm.type}
+              onChange={(e) => setTaskForm({ ...taskForm, type: e.target.value })}
+              className="px-4 py-3 rounded-2xl border bg-background"
+            >
+              <option value="TASK">Task</option>
+              <option value="BUG">Bug</option>
+              <option value="FEATURE">Feature</option>
+              <option value="EPIC">Epic</option>
+            </select>
           </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Due Date</label>
-            <input type="date" value={taskForm.dueDate} onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })} className="w-full px-3 py-2 rounded-md border bg-background text-sm" />
-          </div>
-          <div className="flex gap-3 justify-end">
-            <Button variant="outline" type="button" onClick={() => setShowCreateTask(false)}>Cancel</Button>
-            <Button type="submit" loading={createTaskMutation.isPending}>Create Task</Button>
+
+          <input
+            type="date"
+            value={taskForm.dueDate}
+            onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
+            className="w-full px-4 py-3 rounded-2xl border bg-background"
+          />
+
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={() => setShowCreateTask(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={createTaskMutation.isPending}>
+              Create Task
+            </Button>
           </div>
         </form>
       </Modal>

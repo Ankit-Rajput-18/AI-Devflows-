@@ -1,4 +1,4 @@
-﻿import {
+import {
   WebSocketGateway,
   WebSocketServer,
   SubscribeMessage,
@@ -45,7 +45,6 @@ export class ChatGateway
     @MessageBody() data: { roomId: string; userId: string },
   ) {
     client.join(data.roomId);
-    this.logger.log('User ' + data.userId + ' joined room ' + data.roomId);
     this.server.to(data.roomId).emit('user_joined', {
       userId: data.userId,
       roomId: data.roomId,
@@ -67,11 +66,20 @@ export class ChatGateway
   @SubscribeMessage('send_message')
   async handleSendMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { roomId: string; content: string; userId: string; type?: string },
+    @MessageBody()
+    data: {
+      roomId: string;
+      content: string;
+      userId: string;
+      type?: string;
+    },
   ) {
     const result = await this.chatService.sendMessage(
       data.roomId,
-      { content: data.content, type: data.type },
+      {
+        content: data.content,
+        type: data.type || 'TEXT',
+      },
       data.userId,
     );
 
@@ -82,21 +90,34 @@ export class ChatGateway
   @SubscribeMessage('typing')
   handleTyping(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { roomId: string; userId: string; userName: string },
+    @MessageBody()
+    data: {
+      roomId: string;
+      userId: string;
+      userName: string;
+    },
   ) {
     client.to(data.roomId).emit('user_typing', {
       userId: data.userId,
       userName: data.userName,
+      roomId: data.roomId,
     });
   }
 
   @SubscribeMessage('stop_typing')
   handleStopTyping(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { roomId: string; userId: string },
+    @MessageBody()
+    data: {
+      roomId: string;
+      userId: string;
+      userName: string;
+    },
   ) {
     client.to(data.roomId).emit('user_stop_typing', {
       userId: data.userId,
+      userName: data.userName,
+      roomId: data.roomId,
     });
   }
 }
