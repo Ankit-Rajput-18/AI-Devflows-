@@ -1,5 +1,7 @@
-﻿import { Sidebar } from '@/components/layout/sidebar';
+import { Sidebar } from '@/components/layout/sidebar';
 import { Navbar } from '@/components/layout/navbar';
+import { CommandPalette } from '@/components/shared/CommandPalette';
+import { AIAssistant } from '@/components/shared/AIAssistant';
 
 export default function DashboardLayout({
   children,
@@ -7,14 +9,16 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar />
-        <main className="flex-1 overflow-y-auto p-6 bg-background">
+        <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>
       </div>
+      <CommandPalette />
+      <AIAssistant />
     </div>
   );
 }

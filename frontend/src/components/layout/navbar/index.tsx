@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, Bell, Moon, Sun, User } from 'lucide-react';
+import { Search, Bell, Moon, Sun, Command } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuthStore } from '@/store/slices/authStore';
 import { getInitials } from '@/lib/utils';
@@ -13,7 +13,6 @@ export function Navbar() {
   const { theme, setTheme } = useTheme();
   const { user } = useAuthStore();
   const [mounted, setMounted] = useState(false);
-  const [search, setSearch] = useState('');
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -26,19 +25,27 @@ export function Navbar() {
 
   const unreadCount = notifData?.data?.unreadCount || 0;
 
+  const openCmdK = () => {
+    const event = new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true });
+    document.dispatchEvent(event);
+  };
+
   return (
-    <header className="h-16 border-b bg-card/80 backdrop-blur-sm flex items-center justify-between px-6 sticky top-0 z-40">
+    <header className="h-16 border-b bg-card/80 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-40">
       <div className="flex items-center gap-4 flex-1">
-        <div className="relative max-w-md w-full hidden md:block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search projects, tasks..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-xl border bg-background text-sm focus:ring-2 focus:ring-primary outline-none transition"
-          />
-        </div>
+        <button
+          onClick={openCmdK}
+          className="hidden md:flex items-center gap-3 px-4 py-2 rounded-xl border bg-background hover:bg-accent transition group max-w-md w-full"
+        >
+          <Search className="w-4 h-4 text-muted-foreground" />
+          <span className="flex-1 text-left text-sm text-muted-foreground">Search or type command...</span>
+          <div className="flex items-center gap-1">
+            <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs bg-muted rounded border">
+              <Command className="w-3 h-3" />
+              K
+            </kbd>
+          </div>
+        </button>
       </div>
 
       <div className="flex items-center gap-2">
@@ -58,7 +65,7 @@ export function Navbar() {
         <Link href="/notifications" className="relative p-2 rounded-xl hover:bg-accent transition">
           <Bell className="w-5 h-5" />
           {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-destructive text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
+            <span className="absolute -top-0.5 -right-0.5 min-w-[20px] h-5 bg-destructive text-white text-xs font-bold rounded-full flex items-center justify-center px-1 animate-pulse">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}

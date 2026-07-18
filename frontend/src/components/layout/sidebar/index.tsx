@@ -3,17 +3,15 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
 import {
   LayoutDashboard, FolderKanban, CheckSquare, Brain,
   FileText, MessageSquare, Calendar, Files, Zap,
-  BarChart3, Settings, LogOut, ChevronLeft, Bell,
-  Users, User,
+  BarChart3, Settings, LogOut, ChevronLeft, Bell, Users
 } from 'lucide-react';
 import { useAuthStore } from '@/store/slices/authStore';
-import { authApi } from '@/services/api';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { getInitials } from '@/lib/utils';
-import { toast } from 'sonner';
 import Cookies from 'js-cookie';
 
 const menuItems = [
@@ -23,13 +21,8 @@ const menuItems = [
   { name: 'Sprints', href: '/sprints', icon: Zap },
   { name: 'Team', href: '/team', icon: Users },
   { name: 'AI Review', href: '/ai-review', icon: Brain },
-  { name: 'AI Docs', href: '/ai-docs', icon: FileText },
   { name: 'Chat', href: '/chat', icon: MessageSquare },
-  { name: 'Calendar', href: '/calendar', icon: Calendar },
-  { name: 'Files', href: '/files', icon: Files },
-  { name: 'Notifications', href: '/notifications', icon: Bell },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-  { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
 export function Sidebar() {
@@ -37,97 +30,67 @@ export function Sidebar() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [collapsed, setCollapsed] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
-
-  const handleLogout = async () => {
-    try { await authApi.logout(); } catch (e) {}
+  const handleLogout = () => {
     Cookies.remove('accessToken');
-    Cookies.remove('refreshToken');
     logout();
-    toast.success('Logged out successfully');
     router.push('/');
   };
 
   return (
     <aside className={cn(
-      'h-screen bg-card border-r flex flex-col transition-all duration-300 flex-shrink-0',
-      collapsed ? 'w-16' : 'w-64'
+      'h-screen border-r flex flex-col transition-all duration-500 bg-white dark:bg-[#09090b]',
+      collapsed ? 'w-20' : 'w-72'
     )}>
-      <div className="p-4 flex items-center justify-between border-b">
+      <div className="p-6 flex items-center justify-between">
         {!collapsed && (
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">DF</span>
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <Zap className="text-white w-6 h-6" />
             </div>
-            <span className="font-bold text-lg bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
-              DevFlow AI
-            </span>
-          </Link>
+            <span className="font-bold text-xl tracking-tight">DevFlow</span>
+          </motion.div>
         )}
-        {collapsed && (
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto">
-            <span className="text-white font-bold text-sm">DF</span>
-          </div>
-        )}
-        {!collapsed && (
-          <button onClick={() => setCollapsed(true)} className="p-1 rounded hover:bg-accent">
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-        )}
-        {collapsed && (
-          <button onClick={() => setCollapsed(false)} className="absolute left-14 top-4 p-1 rounded-lg bg-card border shadow-md hover:bg-accent z-10">
-            <ChevronLeft className="w-4 h-4 rotate-180" />
-          </button>
-        )}
+        <button onClick={() => setCollapsed(!collapsed)} className="p-2 hover:bg-muted rounded-xl transition-colors">
+          <ChevronLeft className={cn("transition-transform duration-500", collapsed && "rotate-180")} />
+        </button>
       </div>
 
-      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto scrollbar-hide">
+      <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
         {menuItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+          const active = pathname === item.href;
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all',
-                isActive
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/20'
-                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-              )}
-              title={collapsed ? item.name : undefined}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>{item.name}</span>}
+            <Link key={item.href} href={item.href} className="block relative group">
+              <div className={cn(
+                "flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300",
+                active ? "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400" : "text-muted-foreground hover:bg-muted"
+              )}>
+                <item.icon className={cn("w-5 h-5", active && "animate-pulse")} />
+                {!collapsed && <span className="font-medium">{item.name}</span>}
+                {active && !collapsed && (
+                  <motion.div layoutId="active" className="absolute left-0 w-1 h-6 bg-blue-600 rounded-r-full" />
+                )}
+              </div>
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-2 border-t">
-        {!collapsed && mounted && user && (
-          <Link
-            href="/profile"
-            className="flex items-center gap-2 px-3 py-2 mb-1 rounded-xl hover:bg-accent transition cursor-pointer group"
-          >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+      <div className="p-4 mt-auto border-t">
+        {!collapsed && user && (
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-muted/50 mb-4">
+            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
               {getInitials(user.name)}
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium truncate">{user.name}</p>
-              <p className="text-xs text-muted-foreground truncate">{user.role}</p>
+            <div className="flex-1 overflow-hidden">
+              <p className="text-sm font-bold truncate">{user.name}</p>
+              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
             </div>
-            <User className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
-          </Link>
+          </div>
         )}
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm w-full text-muted-foreground hover:bg-destructive hover:text-white transition"
-          title={collapsed ? 'Logout' : undefined}
-        >
+        <button onClick={handleLogout} className="flex items-center gap-4 w-full px-4 py-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-2xl transition-all">
           <LogOut className="w-5 h-5" />
-          {!collapsed && <span>Logout</span>}
+          {!collapsed && <span className="font-medium">Logout</span>}
         </button>
       </div>
     </aside>
