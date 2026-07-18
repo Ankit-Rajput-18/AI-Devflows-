@@ -1,13 +1,6 @@
-﻿import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  UseGuards,
-  Req,
-  Res,
-  HttpCode,
-  HttpStatus,
+import {
+  Controller, Post, Get, Body,
+  UseGuards, Req, Res, HttpCode, HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -56,10 +49,18 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Google OAuth callback' })
   async googleAuthCallback(@Req() req: any, @Res() res: Response) {
-    const result = await this.authService.googleLogin(req.user);
-    const frontendUrl = this.configService.get<string>('app.frontendUrl', 'http://localhost:3000');
-    const redirectUrl = frontendUrl + '/oauth/callback?accessToken=' + result.data.accessToken + '&refreshToken=' + result.data.refreshToken;
-    return res.redirect(redirectUrl);
+    try {
+      const result = await this.authService.googleLogin(req.user);
+      const frontendUrl = this.configService.get<string>('app.frontendUrl', 'http://localhost:3000');
+      const { accessToken, refreshToken } = result.data;
+
+      return res.redirect(
+        frontendUrl + '/oauth/callback?accessToken=' + accessToken + '&refreshToken=' + refreshToken
+      );
+    } catch (error) {
+      const frontendUrl = this.configService.get<string>('app.frontendUrl', 'http://localhost:3000');
+      return res.redirect(frontendUrl + '/login?error=oauth_failed');
+    }
   }
 
   @Public()

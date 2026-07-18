@@ -1,10 +1,11 @@
-﻿import { NestFactory } from '@nestjs/core';
+import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import helmet from 'helmet';
 import * as compression from 'compression';
+import * as session from 'express-session';
 import { AppModule } from './app/app.module';
 
 async function bootstrap() {
@@ -18,16 +19,25 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 4000);
   const nodeEnv = configService.get<string>('NODE_ENV', 'development');
 
-  // Security
   app.use(helmet({
     crossOriginEmbedderPolicy: false,
     contentSecurityPolicy: false,
   }));
 
-  // Compression
   app.use(compression());
 
-  // CORS
+  app.use(
+    session({
+      secret: configService.get<string>('jwt.secret', 'session-secret'),
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        maxAge: 60000,
+        httpOnly: true,
+      },
+    }),
+  );
+
   app.enableCors({
     origin: [
       'http://localhost:3000',
@@ -38,10 +48,8 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Global prefix
   app.setGlobalPrefix('api');
 
-  // Validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -53,10 +61,8 @@ async function bootstrap() {
     }),
   );
 
-  // WebSocket adapter
   app.useWebSocketAdapter(new IoAdapter(app));
 
-  // Swagger API Docs (only in development)
   if (nodeEnv !== 'production') {
     const config = new DocumentBuilder()
       .setTitle('DevFlow AI API')
@@ -81,8 +87,6 @@ async function bootstrap() {
       .addTag('AI', 'AI powered features')
       .addTag('Chat', 'Real-time chat')
       .addTag('Notifications', 'Notification system')
-      .addTag('Analytics', 'Analytics dashboard')
-      .addTag('Files', 'File management')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
@@ -92,7 +96,7 @@ async function bootstrap() {
       },
     });
 
-    logger.log('📚 Swagger docs available at: http://localhost:' + port + '/api/docs');
+    logger.log('📚 Swagger docs: http://localhost:' + port + '/api/docs');
   }
 
   await app.listen(port);

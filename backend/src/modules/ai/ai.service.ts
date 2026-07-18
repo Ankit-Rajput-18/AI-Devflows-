@@ -1,4 +1,4 @@
-﻿import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { GeminiService } from './services/gemini.service';
 import { CodeReviewDto, BugDetectionDto, PRSummaryDto, DocGeneratorDto } from './dto';
@@ -18,8 +18,26 @@ export class AiService {
     private geminiService: GeminiService,
   ) {}
 
+  private extractJSON(text: string): any {
+    try {
+      return JSON.parse(text);
+    } catch {
+      try {
+        const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) return JSON.parse(jsonMatch[1].trim());
+      } catch {}
+
+      try {
+        const braceMatch = text.match(/\{[\s\S]*\}/);
+        if (braceMatch) return JSON.parse(braceMatch[0]);
+      } catch {}
+
+      return null;
+    }
+  }
+
   async codeReview(dto: CodeReviewDto, userId: string) {
-    this.logger.log('Starting AI code review');
+    this.logger.log('Starting AI code review for ' + dto.language);
 
     const prompt = CODE_REVIEW_PROMPT
       .replace('{language}', dto.language)
@@ -27,29 +45,31 @@ export class AiService {
 
     const response = await this.geminiService.generateContent(prompt);
 
-    let parsed;
-    try {
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : response);
-    } catch {
-      parsed = {
-        score: 70,
-        summary: response,
-        issues: [],
-        goodPractices: [],
-        suggestions: [],
-      };
-    }
+    const parsed = this.extractJSON(response);
+
+    const result = parsed || {
+      score: 70,
+      summary: response.substring(0, 500),
+      issues: [],
+      goodPractices: [],
+      suggestions: [],
+    };
+
+    const score = typeof result.score === 'number' ? result.score : 70;
+    const summary = result.summary || 'Review completed';
+    const issues = Array.isArray(result.issues) ? result.issues : [];
+    const goodPractices = Array.isArray(result.goodPractices) ? result.goodPractices : [];
+    const suggestions = Array.isArray(result.suggestions) ? result.suggestions : [];
 
     const review = await this.prisma.aIReview.create({
       data: {
         code: dto.code,
         language: dto.language,
-        review: parsed.summary || response,
-        summary: parsed.summary,
-        bugs: parsed.issues || [],
-        suggestions: parsed.suggestions || [],
-        score: parsed.score || 0,
+        review: summary,
+        summary: summary,
+        bugs: issues,
+        suggestions: suggestions,
+        score: score,
         status: 'COMPLETED',
         userId,
         projectId: dto.projectId,
@@ -57,24 +77,24 @@ export class AiService {
       },
     });
 
-    this.logger.log('Code review completed. Score: ' + parsed.score);
+    this.logger.log('Code review completed. Score: ' + score);
 
     return {
       message: 'Code review completed',
       data: {
         id: review.id,
-        score: parsed.score,
-        summary: parsed.summary,
-        issues: parsed.issues,
-        goodPractices: parsed.goodPractices,
-        suggestions: parsed.suggestions,
+        score,
+        summary,
+        issues,
+        goodPractices,
+        suggestions,
         createdAt: review.createdAt,
       },
     };
   }
 
   async bugDetection(dto: BugDetectionDto, userId: string) {
-    this.logger.log('Starting AI bug detection');
+    this.logger.log('Starting AI bug detection for ' + dto.language);
 
     const prompt = BUG_DETECTION_PROMPT
       .replace('{language}', dto.language)
@@ -82,24 +102,25 @@ export class AiService {
 
     const response = await this.geminiService.generateContent(prompt);
 
-    let parsed;
-    try {
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : response);
-    } catch {
-      parsed = {
-        totalBugs: 0,
-        bugs: [],
-        securityIssues: [],
-        performanceIssues: [],
-      };
-    }
+    const parsed = this.extractJSON(response);
 
-    this.logger.log('Bug detection completed. Bugs found: ' + parsed.totalBugs);
+    const result = parsed || {
+      totalBugs: 0,
+      bugs: [],
+      securityIssues: [],
+      performanceIssues: [],
+    };
+
+    this.logger.log('Bug detection completed. Bugs: ' + (result.totalBugs || result.bugs?.length || 0));
 
     return {
       message: 'Bug detection completed',
-      data: parsed,
+      data: {
+        totalBugs: result.totalBugs || result.bugs?.length || 0,
+        bugs: Array.isArray(result.bugs) ? result.bugs : [],
+        securityIssues: Array.isArray(result.securityIssues) ? result.securityIssues : [],
+        performanceIssues: Array.isArray(result.performanceIssues) ? result.performanceIssues : [],
+      },
     };
   }
 
@@ -110,39 +131,38 @@ export class AiService {
 
     const response = await this.geminiService.generateContent(prompt);
 
-    let parsed;
-    try {
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : response);
-    } catch {
-      parsed = {
-        title: 'Pull Request',
-        description: response,
-        changes: [],
-        testingNotes: [],
-        breakingChanges: [],
-        labels: [],
-      };
-    }
+    const parsed = this.extractJSON(response);
 
-    this.logger.log('PR summary generated');
+    const result = parsed || {
+      title: 'Pull Request',
+      description: response.substring(0, 500),
+      changes: [],
+      testingNotes: [],
+      breakingChanges: [],
+      labels: [],
+    };
 
     return {
       message: 'PR summary generated',
-      data: parsed,
+      data: {
+        title: result.title || 'Pull Request',
+        description: result.description || '',
+        changes: Array.isArray(result.changes) ? result.changes : [],
+        testingNotes: Array.isArray(result.testingNotes) ? result.testingNotes : [],
+        breakingChanges: Array.isArray(result.breakingChanges) ? result.breakingChanges : [],
+        labels: Array.isArray(result.labels) ? result.labels : [],
+      },
     };
   }
 
   async generateDocs(dto: DocGeneratorDto, userId: string) {
-    this.logger.log('Generating documentation');
+    this.logger.log('Generating documentation for ' + dto.language);
 
     const prompt = DOC_GENERATOR_PROMPT
       .replace('{language}', dto.language)
       .replace('{code}', dto.code);
 
     const response = await this.geminiService.generateContent(prompt);
-
-    this.logger.log('Documentation generated');
 
     return {
       message: 'Documentation generated',
@@ -173,9 +193,7 @@ export class AiService {
       where: { id },
     });
 
-    if (!review) {
-      throw new Error('Review not found');
-    }
+    if (!review) throw new Error('Review not found');
 
     return { data: review };
   }

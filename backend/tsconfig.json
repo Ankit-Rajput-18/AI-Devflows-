@@ -1,4 +1,4 @@
-﻿{
+{
   "compilerOptions": {
     "module": "commonjs",
     "declaration": true,
@@ -23,7 +23,6 @@
       "@common/*": ["src/common/*"],
       "@utils/*": ["src/utils/*"],
       "@database/*": ["src/database/*"],
-      "@graphql/*": ["src/graphql/*"],
       "@queues/*": ["src/queues/*"]
     }
   }
