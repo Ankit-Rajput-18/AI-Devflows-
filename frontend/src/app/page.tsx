@@ -1,11 +1,12 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from 'next-themes';
+import { Logo } from '@/components/shared/Logo';
 import {
-  Brain, Code2, MessageSquare, Shield, Zap, CheckCircle,
+  Brain, MessageSquare, Shield, Zap, CheckCircle,
   ArrowRight, Star, Users, BarChart3, Calendar, FolderKanban,
   Sparkles, Github, Twitter, Linkedin, Menu, X, ChevronDown,
   Play, Rocket, Target, Layers, Terminal, GitBranch,
@@ -56,17 +57,11 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Navbar */}
       <nav className={'fixed top-0 w-full z-50 transition-all duration-300 ' + (scrolled ? 'border-b bg-background/80 backdrop-blur-xl shadow-sm' : 'bg-transparent')}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/25">
-                <Code2 className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
-                DevFlow AI
-              </span>
+            <Link href="/">
+              <Logo size="md" showText animated />
             </Link>
 
             <div className="hidden lg:flex items-center gap-8">
@@ -81,7 +76,6 @@ export default function HomePage() {
                 <button
                   onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                   className="p-2 rounded-xl hover:bg-accent transition-colors"
-                  aria-label="Toggle theme"
                 >
                   {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-blue-600" />}
                 </button>
@@ -94,10 +88,7 @@ export default function HomePage() {
 
             <div className="flex items-center gap-2 lg:hidden">
               {mounted && (
-                <button
-                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  className="p-2 rounded-xl hover:bg-accent"
-                >
+                <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 rounded-xl hover:bg-accent">
                   {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </button>
               )}
@@ -121,7 +112,6 @@ export default function HomePage() {
         </div>
       </nav>
 
-      {/* Hero */}
       <section className="pt-32 pb-20 px-4 relative overflow-hidden">
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/20 dark:bg-purple-500/10 rounded-full blur-3xl animate-pulse" />
@@ -129,6 +119,10 @@ export default function HomePage() {
         </div>
 
         <div className="max-w-7xl mx-auto text-center relative">
+          <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} className="flex justify-center mb-6">
+            <Logo size="xl" showText={false} animated />
+          </motion.div>
+
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-2 px-4 py-2 rounded-full border bg-card/50 backdrop-blur text-sm mb-8 shadow-sm">
             <Sparkles className="w-4 h-4 text-yellow-500" />
             <span className="font-medium">AI-Powered Developer Workspace</span>
@@ -175,13 +169,11 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Features */}
       <section id="features" className="py-24 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
-              <Sparkles className="w-4 h-4" />
-              Features
+              <Sparkles className="w-4 h-4" /> Features
             </div>
             <h2 className="text-4xl md:text-5xl font-bold">Everything you need to build faster</h2>
             <p className="text-muted-foreground mt-4 max-w-2xl mx-auto text-lg">
@@ -212,24 +204,15 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Testimonials */}
       <section id="testimonials" className="py-24 px-4 bg-muted/30">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold">Loved by developers worldwide</h2>
             <p className="text-muted-foreground mt-4 text-lg">See what our users say</p>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {testimonials.map((t, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="p-6 rounded-2xl border bg-card hover:shadow-xl transition"
-              >
+              <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="p-6 rounded-2xl border bg-card hover:shadow-xl transition">
                 <div className="flex items-center gap-4 mb-4">
                   <div className={'w-14 h-14 rounded-full bg-gradient-to-br ' + t.color + ' flex items-center justify-center text-white font-bold text-lg shadow-lg'}>
                     {t.image}
@@ -239,9 +222,7 @@ export default function HomePage() {
                     <p className="text-sm text-muted-foreground">{t.role}</p>
                   </div>
                   <div className="flex gap-0.5">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star key={s} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
-                    ))}
+                    {[1, 2, 3, 4, 5].map((s) => (<Star key={s} className="w-4 h-4 fill-yellow-500 text-yellow-500" />))}
                   </div>
                 </div>
                 <p className="text-muted-foreground leading-relaxed">{t.content}</p>
@@ -251,28 +232,17 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Pricing */}
       <section id="pricing" className="py-24 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold">Simple Pricing</h2>
             <p className="text-muted-foreground mt-4 text-lg">Start free, upgrade when needed</p>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {pricingPlans.map((plan, i) => (
-              <motion.div
-                key={plan.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className={'relative p-8 rounded-2xl border-2 bg-card transition ' + (plan.popular ? 'border-primary shadow-2xl shadow-primary/20 scale-105' : 'hover:border-primary/50 hover:shadow-xl')}
-              >
+              <motion.div key={plan.name} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className={'relative p-8 rounded-2xl border-2 bg-card transition ' + (plan.popular ? 'border-primary shadow-2xl shadow-primary/20 scale-105' : 'hover:border-primary/50 hover:shadow-xl')}>
                 {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-bold">
-                    MOST POPULAR
-                  </div>
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-bold">MOST POPULAR</div>
                 )}
                 <h3 className="text-2xl font-bold">{plan.name}</h3>
                 <p className="text-sm text-muted-foreground mt-1">{plan.desc}</p>
@@ -286,10 +256,7 @@ export default function HomePage() {
                     </div>
                   )}
                 </div>
-                <Link
-                  href="/register"
-                  className={'block w-full py-3 rounded-xl text-center font-medium transition ' + (plan.popular ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90 shadow-lg' : 'border hover:bg-accent')}
-                >
+                <Link href="/register" className={'block w-full py-3 rounded-xl text-center font-medium transition ' + (plan.popular ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90 shadow-lg' : 'border hover:bg-accent')}>
                   Get Started
                 </Link>
                 <div className="mt-8 space-y-3">
@@ -306,7 +273,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* FAQ */}
       <section id="faq" className="py-24 px-4 bg-muted/30">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-16">
@@ -326,14 +292,14 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CTA */}
       <section className="py-24 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="relative p-12 md:p-20 rounded-3xl bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white overflow-hidden text-center">
+            <div className="flex justify-center mb-6">
+              <Logo size="lg" showText={false} animated className="opacity-90" />
+            </div>
             <h2 className="text-4xl md:text-6xl font-bold">Ready to build faster?</h2>
-            <p className="mt-4 text-white/80 text-lg md:text-xl">
-              Join 10,000+ developers using DevFlow AI
-            </p>
+            <p className="mt-4 text-white/80 text-lg md:text-xl">Join 10,000+ developers using DevFlow AI</p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10">
               <Link href="/register" className="px-8 py-4 bg-white text-blue-600 font-semibold rounded-xl hover:bg-gray-100 transition flex items-center gap-2 shadow-xl">
                 Get Started Free <ArrowRight className="w-5 h-5" />
@@ -346,30 +312,20 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="border-t bg-muted/30 pt-16 pb-8 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
             <div className="col-span-2">
-              <Link href="/" className="flex items-center gap-2 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                  <Code2 className="w-5 h-5 text-white" />
-                </div>
-                <span className="font-bold text-xl">DevFlow AI</span>
+              <Link href="/" className="inline-block mb-4">
+                <Logo size="md" showText />
               </Link>
               <p className="text-sm text-muted-foreground max-w-sm mb-4">
                 The AI-powered developer workspace for modern teams.
               </p>
               <div className="flex gap-3">
-                <a href="#" className="w-9 h-9 rounded-lg border bg-card flex items-center justify-center hover:bg-accent transition">
-                  <Github className="w-4 h-4" />
-                </a>
-                <a href="#" className="w-9 h-9 rounded-lg border bg-card flex items-center justify-center hover:bg-accent transition">
-                  <Twitter className="w-4 h-4" />
-                </a>
-                <a href="#" className="w-9 h-9 rounded-lg border bg-card flex items-center justify-center hover:bg-accent transition">
-                  <Linkedin className="w-4 h-4" />
-                </a>
+                <a href="#" className="w-9 h-9 rounded-lg border bg-card flex items-center justify-center hover:bg-accent transition"><Github className="w-4 h-4" /></a>
+                <a href="#" className="w-9 h-9 rounded-lg border bg-card flex items-center justify-center hover:bg-accent transition"><Twitter className="w-4 h-4" /></a>
+                <a href="#" className="w-9 h-9 rounded-lg border bg-card flex items-center justify-center hover:bg-accent transition"><Linkedin className="w-4 h-4" /></a>
               </div>
             </div>
 

@@ -12,6 +12,7 @@ import {
 import { useAuthStore } from '@/store/slices/authStore';
 import { authApi } from '@/services/api';
 import { Avatar } from '@/components/shared/Avatar';
+import { Logo } from '@/components/shared/Logo';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import Cookies from 'js-cookie';
@@ -53,43 +54,60 @@ export function Sidebar() {
       'h-screen border-r flex flex-col transition-all duration-500 bg-white dark:bg-slate-950 flex-shrink-0',
       collapsed ? 'w-20' : 'w-72'
     )}>
-      <div className="p-6 flex items-center justify-between">
+      <div className="p-5 flex items-center justify-between border-b border-slate-100 dark:border-slate-900">
+        <Link href="/dashboard" className={collapsed ? 'mx-auto' : ''}>
+          {collapsed ? (
+            <Logo size="sm" showText={false} animated />
+          ) : (
+            <Logo size="md" showText={true} animated />
+          )}
+        </Link>
         {!collapsed && (
-          <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
-              <Zap className="text-white w-5 h-5" />
-            </div>
-            <span className="font-bold text-xl tracking-tight">DevFlow</span>
-          </motion.div>
+          <button
+            onClick={() => setCollapsed(true)}
+            className="p-2 hover:bg-muted rounded-xl transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
         )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-2 hover:bg-muted rounded-xl transition-colors"
-        >
-          <ChevronLeft className={cn("w-5 h-5 transition-transform duration-500", collapsed && "rotate-180")} />
-        </button>
       </div>
 
-      <nav className="flex-1 px-4 space-y-1 overflow-y-auto scrollbar-hide">
+      {collapsed && (
+        <button
+          onClick={() => setCollapsed(false)}
+          className="mx-4 mt-3 p-2 hover:bg-muted rounded-xl transition-colors flex items-center justify-center"
+        >
+          <ChevronLeft className="w-4 h-4 rotate-180" />
+        </button>
+      )}
+
+      <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto scrollbar-hide">
         {menuItems.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/');
           return (
             <Link key={item.href} href={item.href} className="block relative">
               <div className={cn(
-                "flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 relative",
+                "flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 relative group",
                 active
                   ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}>
-                <item.icon className="w-5 h-5 flex-shrink-0" />
+                <item.icon className={cn("w-5 h-5 flex-shrink-0 transition-transform", active && "scale-110")} />
                 {!collapsed && <span className="font-medium text-sm">{item.name}</span>}
+
+                {active && !collapsed && (
+                  <motion.div
+                    layoutId="activeIndicator"
+                    className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white"
+                  />
+                )}
               </div>
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-4 mt-auto border-t space-y-2">
+      <div className="p-4 mt-auto border-t border-slate-100 dark:border-slate-900 space-y-2">
         {!collapsed && mounted && user && (
           <Link href="/profile" className="block">
             <div className="flex items-center gap-3 p-3 rounded-2xl bg-muted/50 hover:bg-muted transition cursor-pointer group">

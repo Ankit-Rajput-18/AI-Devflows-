@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { useAuthStore } from '@/store/slices/authStore';
 import { authApi } from '@/services/api';
 import { toast } from 'sonner';
-import { Code2, Eye, EyeOff, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Logo } from '@/components/shared/Logo';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -73,12 +74,7 @@ export default function RegisterPage() {
               <ArrowLeft className="w-4 h-4" /> Back to home
             </Link>
 
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <Code2 className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-2xl font-bold">DevFlow AI</span>
-            </div>
+            <Logo size="lg" showText animated className="mb-4" />
             <h2 className="text-2xl font-bold mt-4">Create your account</h2>
             <p className="text-muted-foreground mt-1">Get started with your AI-powered workspace</p>
           </div>
