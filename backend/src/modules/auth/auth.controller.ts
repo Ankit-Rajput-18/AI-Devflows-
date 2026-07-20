@@ -51,14 +51,21 @@ export class AuthController {
   async googleAuthCallback(@Req() req: any, @Res() res: Response) {
     try {
       const result = await this.authService.googleLogin(req.user);
-      const frontendUrl = this.configService.get<string>('app.frontendUrl', 'http://localhost:3000');
+
+      const frontendUrl = process.env.FRONTEND_URL
+        || this.configService.get<string>('app.frontendUrl')
+        || 'http://localhost:3000';
+
       const { accessToken, refreshToken } = result.data;
 
-      return res.redirect(
-        frontendUrl + '/oauth/callback?accessToken=' + accessToken + '&refreshToken=' + refreshToken
-      );
+      const redirectUrl = frontendUrl + '/oauth?accessToken=' + accessToken + '&refreshToken=' + refreshToken;
+
+      return res.redirect(redirectUrl);
     } catch (error) {
-      const frontendUrl = this.configService.get<string>('app.frontendUrl', 'http://localhost:3000');
+      const frontendUrl = process.env.FRONTEND_URL
+        || this.configService.get<string>('app.frontendUrl')
+        || 'http://localhost:3000';
+
       return res.redirect(frontendUrl + '/login?error=oauth_failed');
     }
   }
