@@ -17,13 +17,6 @@
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
-    "paths": {
-      "@modules/*": ["src/modules/*"],
-      "@config/*": ["src/config/*"],
-      "@common/*": ["src/common/*"],
-      "@utils/*": ["src/utils/*"],
-      "@database/*": ["src/database/*"],
-      "@queues/*": ["src/queues/*"]
-    }
+    "esModuleInterop": true
   }
 }
