@@ -46,11 +46,10 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left - Gradient */}
       <div className="hidden lg:flex flex-1 bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 items-center justify-center p-12">
         <div className="text-white text-center max-w-md">
           <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center mx-auto mb-8">
-            <Code2 className="w-10 h-10" />
+            <Logo size="lg" showText={false} className="scale-110" />
           </div>
           <h2 className="text-3xl font-bold">Join DevFlow AI</h2>
           <p className="mt-3 text-white/80 text-lg">
@@ -66,7 +65,6 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* Right - Form */}
       <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-md space-y-8">
           <div>
@@ -75,6 +73,7 @@ export default function RegisterPage() {
             </Link>
 
             <Logo size="lg" showText animated className="mb-4" />
+
             <h2 className="text-2xl font-bold mt-4">Create your account</h2>
             <p className="text-muted-foreground mt-1">Get started with your AI-powered workspace</p>
           </div>

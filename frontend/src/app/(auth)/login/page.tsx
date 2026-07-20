@@ -40,7 +40,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left - Form */}
       <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-md space-y-8">
           <div>
@@ -49,6 +48,7 @@ export default function LoginPage() {
             </Link>
 
             <Logo size="lg" showText animated className="mb-4" />
+
             <h2 className="text-2xl font-bold mt-4">Welcome back</h2>
             <p className="text-muted-foreground mt-1">Sign in to your account to continue</p>
           </div>
@@ -138,18 +138,17 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right - Gradient */}
       <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 items-center justify-center p-12">
         <div className="text-white text-center max-w-md">
           <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center mx-auto mb-8">
-            <Code2 className="w-10 h-10" />
+            <Logo size="lg" showText={false} className="scale-110" />
           </div>
           <h2 className="text-3xl font-bold">DevFlow AI</h2>
           <p className="mt-3 text-white/80 text-lg">
             AI-Powered Developer Workspace for modern teams
           </p>
           <div className="mt-8 space-y-3">
-            {['AI Code Review & Bug Detection', 'Real-time Team Chat', 'Sprint & Task Management', 'Beautiful Analytics Dashboard'].map((item) => (
+            {['AI Code Review and Bug Detection', 'Real-time Team Chat', 'Sprint and Task Management', 'Beautiful Analytics Dashboard'].map((item) => (
               <div key={item} className="flex items-center gap-2 text-white/90">
                 <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
