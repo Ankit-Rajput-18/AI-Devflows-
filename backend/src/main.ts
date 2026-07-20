@@ -1,11 +1,11 @@
-﻿import { NestFactory } from '@nestjs/core';
+import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import helmet from 'helmet';
-import * as compression from 'compression';
-import * as session from 'express-session';
+import compression from 'compression';
+import session from 'express-session';
 import { AppModule } from './app/app.module';
 
 async function bootstrap() {
