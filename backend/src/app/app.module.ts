@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+﻿import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -27,7 +27,6 @@ import { AnalyticsModule } from '../modules/analytics/analytics.module';
 import { TeamModule } from '../modules/team/team.module';
 import { ApiKeysModule } from '../modules/api-keys/api-keys.module';
 import { WebhooksModule } from '../modules/webhooks/webhooks.module';
-import { QueueModule } from '../queues/queue.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -35,23 +34,17 @@ import { AppService } from './app.service';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [
-        appConfig, databaseConfig, jwtConfig,
-        redisConfig, googleConfig, geminiConfig, cloudinaryConfig,
-      ],
+      load: [appConfig, databaseConfig, jwtConfig, redisConfig, googleConfig, geminiConfig, cloudinaryConfig],
       envFilePath: ['.env'],
     }),
-
     ThrottlerModule.forRoot([
       { name: 'short', ttl: 1000, limit: 10 },
       { name: 'medium', ttl: 10000, limit: 50 },
       { name: 'long', ttl: 60000, limit: 200 },
     ]),
-
     ScheduleModule.forRoot(),
     DatabaseModule,
     CacheModule,
-    QueueModule,
     AuthModule,
     UsersModule,
     ProjectsModule,

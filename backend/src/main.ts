@@ -1,4 +1,4 @@
-import { NestFactory } from '@nestjs/core';
+﻿import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -12,11 +12,11 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
   const app = await NestFactory.create(AppModule, {
-    logger: ['error', 'warn', 'debug', 'log', 'verbose'],
+    logger: ['error', 'warn', 'log'],
   });
 
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('PORT', 4000);
+  const port = parseInt(process.env.PORT || '4000', 10);
   const nodeEnv = configService.get<string>('NODE_ENV', 'development');
 
   app.use(helmet({
@@ -31,19 +31,25 @@ async function bootstrap() {
       secret: configService.get<string>('jwt.secret', 'session-secret'),
       resave: false,
       saveUninitialized: false,
-      cookie: {
-        maxAge: 60000,
-        httpOnly: true,
-      },
+      cookie: { maxAge: 60000, httpOnly: true },
     }),
   );
 
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    configService.get<string>('APP_URL'),
+    process.env.FRONTEND_URL,
+  ].filter(Boolean);
+
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      configService.get<string>('APP_URL', 'http://localhost:3000'),
-    ],
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin) || origin.includes('vercel.app')) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
   });
@@ -55,9 +61,7 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
+      transformOptions: { enableImplicitConversion: true },
     }),
   );
 
@@ -66,44 +70,19 @@ async function bootstrap() {
   if (nodeEnv !== 'production') {
     const config = new DocumentBuilder()
       .setTitle('DevFlow AI API')
-      .setDescription('AI Powered Developer Workspace API Documentation')
+      .setDescription('AI Powered Developer Workspace API')
       .setVersion('1.0')
-      .addBearerAuth(
-        {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-          name: 'JWT',
-          description: 'Enter JWT token',
-          in: 'header',
-        },
-        'JWT-auth',
-      )
-      .addTag('Auth', 'Authentication endpoints')
-      .addTag('Users', 'User management')
-      .addTag('Projects', 'Project management')
-      .addTag('Tasks', 'Task management')
-      .addTag('Sprints', 'Sprint management')
-      .addTag('AI', 'AI powered features')
-      .addTag('Chat', 'Real-time chat')
-      .addTag('Notifications', 'Notification system')
+      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' }, 'JWT-auth')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api/docs', app, document, {
-      swaggerOptions: {
-        persistAuthorization: true,
-      },
-    });
-
-    logger.log('📚 Swagger docs: http://localhost:' + port + '/api/docs');
+    SwaggerModule.setup('api/docs', app, document);
+    logger.log('Swagger docs: http://localhost:' + port + '/api/docs');
   }
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
-  logger.log('🚀 DevFlow AI Backend is running!');
-  logger.log('📡 API: http://localhost:' + port + '/api');
-  logger.log('🎮 GraphQL: http://localhost:' + port + '/graphql');
+  logger.log('🚀 DevFlow AI Backend running on port ' + port);
   logger.log('🌍 Environment: ' + nodeEnv);
 }
 
